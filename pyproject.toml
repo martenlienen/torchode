@@ -1,0 +1,47 @@
+[build-system]
+requires = ["flit_core ~= 3.7"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "torchode"
+dynamic = ["version", "description"]
+readme = "README.md"
+requires-python = ">= 3.10"
+license = {file = "LICENSE"}
+authors = [{name = "Marten Lienen", email = "m.lienen@tum.de"}]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python"
+]
+dependencies = [
+  "sympy ~= 1.10",
+  "torch ~= 1.11",
+  "torchtyping ~= 0.1.4",
+  "functorch ~= 0.2",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "numpy ~= 1.22"]
+benchmark = ["pytest-benchmark"]
+
+[project.urls]
+homepage = "https://github.com/martenlienen/torchode"
+
+[tool.flit.module]
+name = "torchode"
+
+[tool.flit.sdist]
+exclude = ["tests/"]
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.isort]
+known_first_party = ["torchode"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

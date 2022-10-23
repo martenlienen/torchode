@@ -1,0 +1,4 @@
+# Python artifacts
+__pycache__
+/.benchmarks
+/dist
