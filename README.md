@@ -47,7 +47,8 @@ t_eval = torch.stack((torch.linspace(0, 5, n_steps), torch.linspace(3, 4, n_step
 sol = solve_ivp(f, y0, t_eval)
 
 print(sol.stats)
-# => {'n_f_evals': tensor([116, 116]), 'n_steps': tensor([19,  9]), 'n_accepted': tensor([19,  9]), 'n_initialized': tensor([10, 10])}
+# => {'n_f_evals': tensor([116, 116]), 'n_steps': tensor([19,  9]),
+# =>  'n_accepted': tensor([19,  9]), 'n_initialized': tensor([10, 10])}
 
 pp.plot(sol.ts[0], sol.ys[0])
 pp.plot(sol.ts[1], sol.ys[1])
