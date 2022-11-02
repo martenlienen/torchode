@@ -11,4 +11,5 @@ plugins:
 
 nav:
   - "Introduction": README.md
+  - jit.ipynb
   - comparison.md
