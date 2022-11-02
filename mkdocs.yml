@@ -4,7 +4,7 @@ repo_url: "https://github.com/martenlienen/torchode"
 site_description: "A parallel ODE solver for PyTorch"
 
 theme:
-  name: readthedocs
+  name: material
 
 plugins:
   - mkdocs-jupyter
