@@ -390,7 +390,7 @@ def test_gradients_with_t_eval(adjoint):
         )
     )
 
-    return torch.autograd.gradcheck(f, (y0, A))
+    assert torch.autograd.gradcheck(f, (y0, A))
 
 
 @pytest.mark.parametrize("adjoint", ["autodiff", "backsolve", "joint-backsolve"])
@@ -446,4 +446,4 @@ def test_gradients_without_t_eval(adjoint):
         # now, so we accept a somewhat larger error in the gradient for now.
         atol = 1e-5
 
-    return torch.autograd.gradcheck(f, (y0, A), atol=atol)
+    assert torch.autograd.gradcheck(f, (y0, A), atol=atol)
