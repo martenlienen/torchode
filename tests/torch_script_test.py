@@ -1,5 +1,6 @@
 import pytest
 import torch
+from packaging import version
 from problems import get_problem
 from pytest import approx
 
@@ -21,7 +22,14 @@ def test_can_be_jitted_with_torch_script(step_method):
     assert solution.ys == approx(solution_jit.ys, abs=1e-3, rel=1e-3)
 
 
-@pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5, Euler])
+methods = [Dopri5, Heun, Tsit5]
+if version.parse(torch.__version__).base_version != "1.13.0":
+    # In pytorch 1.13.0, Euler triggers an internal error in the JIT compiler
+    # specifically in this next test, so we just exclude it
+    methods.append(Euler)
+
+
+@pytest.mark.parametrize("step_method", methods)
 def test_passing_term_dynamically_equals_fixed_term(step_method):
     _, term, problem = get_problem("sine", [[0.1, 0.15, 1.0], [1.0, 1.9, 2.0]])
 
