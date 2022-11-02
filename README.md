@@ -1,5 +1,7 @@
 # A Parallel ODE Solver for PyTorch
 
+![pytest](https://github.com/martenlienen/torchode/actions/workflows/python-package.yml/badge.svg)
+
 torchode is a suite of single-step ODE solvers such as `dopri5` or `tsit5` that are
 compatible with PyTorch's JIT compiler and parallelized across a batch. JIT compilation
 often gives a performance boost, especially for code with many small operations such as an
