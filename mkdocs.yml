@@ -5,3 +5,6 @@ site_description: "A parallel ODE solver for PyTorch"
 
 theme:
   name: readthedocs
+
+plugins:
+  - mkdocs-jupyter

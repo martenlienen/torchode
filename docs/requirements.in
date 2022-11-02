@@ -1,1 +1,2 @@
 mkdocs==1.4.1
+mkdocs-jupyter~=0.21
