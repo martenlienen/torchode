@@ -1,6 +1,7 @@
 import pytest
 import torch
 from problems import get_problem
+from pytest import approx
 
 from torchode import AutoDiffAdjoint, Dopri5, Euler, Heun, IntegralController, Tsit5
 
@@ -16,8 +17,8 @@ def test_can_be_jitted_with_torch_script(step_method):
     solution = adjoint.solve(problem, dt0=dt0)
     solution_jit = jitted.solve(problem, dt0=dt0)
 
-    assert torch.allclose(solution.ts, solution_jit.ts)
-    assert torch.allclose(solution.ys, solution_jit.ys)
+    assert solution.ts == approx(solution_jit.ts)
+    assert solution.ys == approx(solution_jit.ys, abs=1e-3, rel=1e-3)
 
 
 @pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5, Euler])
@@ -34,5 +35,5 @@ def test_passing_term_dynamically_equals_fixed_term(step_method):
     adjoint_jit = AutoDiffAdjoint(step_method(term), controller_jit)
     solution_jit = torch.jit.script(adjoint_jit).solve(problem, dt0=dt0)
 
-    assert torch.allclose(solution.ts, solution_jit.ts)
-    assert torch.allclose(solution.ys, solution_jit.ys)
+    assert solution.ts == approx(solution_jit.ts)
+    assert solution.ys == approx(solution_jit.ys, abs=1e-3, rel=1e-3)

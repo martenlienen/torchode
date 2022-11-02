@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from numpy.polynomial import Polynomial
+from pytest import approx
 
 from torchode import Tsit5
 from torchode.interpolation import (
@@ -37,8 +38,7 @@ def test_third_order_coefficients_from_k():
 
     assert interp.t0.allclose(t0)
     assert interp.t1.allclose(t0 + dt)
-    for i in range(4):
-        assert np.allclose(interp.coefficients[i].numpy(), p.coef[i])
+    assert torch.cat(interp.coefficients)[:, 0] == approx(p.coef, abs=1e-4)
 
 
 def test_fourth_order_evaluation_batch():
@@ -73,8 +73,7 @@ def test_fourth_order_coefficients_from_k():
 
     assert interp.t0.allclose(t0)
     assert interp.t1.allclose(t0 + dt)
-    for i in range(5):
-        assert np.allclose(interp.coefficients[i].numpy(), p.coef[i])
+    assert torch.cat(interp.coefficients)[:, 0] == approx(p.coef)
 
 
 def test_tsit5_recovers_coefficients_of_4th_order_polynomial():
@@ -99,5 +98,4 @@ def test_tsit5_recovers_coefficients_of_4th_order_polynomial():
 
     assert interp.t0.allclose(t0)
     assert interp.t1.allclose(t0 + dt)
-    for i in range(5):
-        assert np.allclose(interp.coefficients[i].numpy(), p.coef[i], atol=1e-4)
+    assert torch.cat(interp.coefficients)[:, 0] == approx(p.coef, abs=5e-4)
