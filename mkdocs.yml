@@ -8,3 +8,7 @@ theme:
 
 plugins:
   - mkdocs-jupyter
+
+nav:
+  - "Introduction": README.md
+  - comparison.md
