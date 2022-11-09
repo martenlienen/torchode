@@ -12,4 +12,5 @@ plugins:
 nav:
   - "Introduction": README.md
   - jit.ipynb
+  - torchdiffeq.ipynb
   - comparison.md
