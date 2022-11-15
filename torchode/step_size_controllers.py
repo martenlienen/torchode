@@ -419,7 +419,7 @@ class IntegralController(nn.Module):
             
         # Enforce the maximum step size
         dt_max = state.dt_max
-        if dt_min is not None:
+        if dt_max is not None:
             # TODO: reuse abs_dt_next if already calculated above
             abs_dt_next = dt_next.abs()
             # Don't really need a status code for this
@@ -766,7 +766,7 @@ class PIDController(nn.Module):
 
         # Enforce the maximum step size
         dt_max = state.dt_max
-        if dt_min is not None:
+        if dt_max is not None:
             # TODO: reuse abs_dt_next if already calculated above
             abs_dt_next = dt_next.abs()
             # Don't really need a status code for this
