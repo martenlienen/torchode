@@ -27,7 +27,7 @@ def test_no_error_estimate_keeps_step_size_constant(controller):
     y0 = torch.tensor([[1.0, 2.0, 3.0]])
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=5, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=None)
     result = StepResult(y0, None)
     accept, dt_next, state_next, status = controller.adapt_step_size(
         t0, dt, y0, result, state, stats={}
@@ -51,7 +51,7 @@ def test_zero_error_produces_finite_step_size(controller):
     y0 = torch.tensor([[1.0, 2.0, 3.0]])
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=5, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=None)
     result = StepResult(y0, torch.zeros_like(y0))
     _, dt_next, _, _ = controller.adapt_step_size(t0, dt, y0, result, state, stats={})
 
@@ -73,7 +73,7 @@ def test_infinite_error_norm_signals_error_status(controller):
     y0 = torch.ones((batch_size, 2))
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=5, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=None)
     result = StepResult(
         y0,
         error_estimate=torch.tensor(
@@ -103,7 +103,7 @@ def test_nan_y_signals_error_status(controller):
     y0 = torch.tensor([[float("nan"), 1.0], [1.5, 1.0]])
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=5, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=None)
 
     result = StepResult(
         y0,
@@ -128,7 +128,7 @@ def test_accepts_step_if_error_small(controller):
     y0 = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=5, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=None)
     result = StepResult(y0, torch.full_like(y0, 0.5))
     accept, dt_next, state_next, status = controller.adapt_step_size(
         t0, dt, y0, result, state, stats={}
@@ -175,7 +175,7 @@ def test_sets_status_on_dt_min(controller):
     y0 = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
 
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(2, problem, dt_min)
+    state = controller.initial_state(2, problem, dt_min, dt_max=None)
 
     # Huge error for the second instance to get a significant decrease in dt
     error = torch.tensor([[0.9, 0.7], [0.0, 100.0]])
@@ -212,7 +212,7 @@ def test_pid_does_not_update_state_if_step_is_rejected():
         safety=1.0,
     )
     problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
-    state = controller.initial_state(method_order=3, problem=problem, dt_min=None)
+    state = controller.initial_state(method_order=3, problem=problem, dt_min=None, dt_max=None)
     result = StepResult(y0, torch.tensor([[0.0, 0.8, 0.0], [0.0, 0.0, 0.0]]))
 
     state.prev_error_ratio = torch.rand((2,))
