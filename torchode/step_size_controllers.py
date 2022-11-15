@@ -194,6 +194,7 @@ class AdaptiveStepSizeController(
         method_order: int,
         problem: InitialValueProblem,
         dt_min: Optional[TimeTensor],
+        dt_max: Optional[TimeTensor],
     ) -> ControllerState:
         raise NotImplementedError()
 
@@ -217,10 +218,12 @@ class IntegralState:
         method_order: int,
         almost_zero: torch.Tensor,
         dt_min: Optional[torch.Tensor] = None,
+        dt_max: Optional[torch.Tensor] = None,
     ):
         self.method_order = method_order
         self.almost_zero = almost_zero
         self.dt_min = dt_min
+        self.dt_max = dt_max
 
     def update_error_ratios(
         self, prev_error_ratio: NormTensor, prev_prev_error_ratio: NormTensor
@@ -232,6 +235,7 @@ class IntegralState:
             f"IState(method_order={self.method_order}, "
             f"almost_zero={self.almost_zero}, "
             f"dt_min={self.dt_min})"
+            f"dt_max={self.dt_max})"
         )
 
     @staticmethod
@@ -242,6 +246,7 @@ class IntegralState:
         dtype: torch.dtype,
         device: Optional[torch.device],
         dt_min: Optional[torch.Tensor],
+        dt_max: Optional[torch.Tensor],
     ):
         # Pre-allocate a fixed, very small number as a lower bound for the error ratio
         if dtype == torch.float16:
@@ -249,7 +254,7 @@ class IntegralState:
         else:
             float_min = 1e-38
         almost_zero = torch.tensor(float_min, dtype=dtype, device=device)
-        return IntegralState(method_order, almost_zero, dt_min)
+        return IntegralState(method_order, almost_zero, dt_min, dt_max)
 
 
 class IntegralController(nn.Module):
@@ -263,6 +268,7 @@ class IntegralController(nn.Module):
         term: Optional[ODETerm] = None,
         norm: Callable[[DataTensor], NormTensor] = rms_norm,
         dt_min: Optional[float] = None,
+        dt_max: Optional[float] = None,
         safety: float = 0.9,
         factor_min: float = 0.2,
         factor_max: float = 10.0,
@@ -274,6 +280,7 @@ class IntegralController(nn.Module):
         self.term = term
         self.norm = norm
         self.dt_min = dt_min
+        self.dt_max = dt_max
 
         self.safety = safety
         self.factor_min = factor_min
@@ -291,6 +298,7 @@ class IntegralController(nn.Module):
         method_order: int,
         problem: InitialValueProblem,
         dt_min: Optional[TimeTensor],
+        dt_max: Optional[TimeTensor],
     ) -> IntegralState:
         return IntegralState.default(
             method_order=method_order,
@@ -298,6 +306,7 @@ class IntegralController(nn.Module):
             dtype=problem.data_dtype,
             device=problem.device,
             dt_min=dt_min,
+            dt_max=dt_max,
         )
 
     @torch.jit.export
@@ -349,7 +358,12 @@ class IntegralController(nn.Module):
             dt_min = torch.tensor(
                 dt_min, dtype=problem.time_dtype, device=problem.device
             )
-        return dt0, self.initial_state(method_order, problem, dt_min), f0
+        dt_max = self.dt_max
+        if dt_max is not None:
+            dt_max = torch.tensor(
+                dt_max, dtype=problem.time_dtype, device=problem.device
+            )
+        return dt0, self.initial_state(method_order, problem, dt_min, dt_max), f0
 
     @torch.jit.export
     def adapt_step_size(
@@ -402,7 +416,18 @@ class IntegralController(nn.Module):
                 abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
             )
             dt_next = torch.sign(dt_next) * torch.maximum(abs_dt_next, dt_min)
-
+            
+        # Enforce the maximum step size
+        dt_max = state.dt_max
+        if dt_min is not None:
+            # TODO: reuse abs_dt_next if already calculated above
+            abs_dt_next = dt_next.abs()
+            # Don't really need a status code for this
+            # status = torch.where(
+            #     abs_dt_next > dt_max, Status.REACHED_DT_MAX.value, status
+            # )
+            dt_next = torch.sign(dt_next) * torch.minimum(abs_dt_next, dt_max)
+            
         return (
             accept,
             dt_next,
@@ -476,12 +501,14 @@ class PIDState:
         prev_prev_error_ratio: NormTensor,
         almost_zero: torch.Tensor,
         dt_min: Optional[torch.Tensor] = None,
+        dt_max: Optional[torch.Tensor] = None,
     ):
         self.method_order = method_order
         self.prev_error_ratio = prev_error_ratio
         self.prev_prev_error_ratio = prev_prev_error_ratio
         self.almost_zero = almost_zero
         self.dt_min = dt_min
+        self.dt_max = dt_max
 
     def update_error_ratios(
         self, prev_error_ratio: NormTensor, prev_prev_error_ratio: NormTensor
@@ -492,6 +519,7 @@ class PIDState:
             prev_prev_error_ratio,
             self.almost_zero,
             self.dt_min,
+            self.dt_max,
         )
 
     def __repr__(self):
@@ -501,6 +529,7 @@ class PIDState:
             f"prev_prev_error_ratio={self.prev_prev_error_ratio}, "
             f"almost_zero={self.almost_zero}, "
             f"dt_min={self.dt_min})"
+            f"dt_max={self.dt_max})"
         )
 
     @staticmethod
@@ -511,6 +540,7 @@ class PIDState:
         dtype: torch.dtype,
         device: Optional[torch.device],
         dt_min: Optional[torch.Tensor],
+        dt_max: Optional[torch.Tensor],
     ):
         default_ratio = torch.ones(batch_size, dtype=dtype, device=device)
         # Pre-allocate a fixed, very small number as a lower bound for the error ratio
@@ -519,7 +549,7 @@ class PIDState:
         else:
             float_min = 1e-38
         almost_zero = torch.tensor(float_min, dtype=dtype, device=device)
-        return PIDState(method_order, default_ratio, default_ratio, almost_zero, dt_min)
+        return PIDState(method_order, default_ratio, default_ratio, almost_zero, dt_min, dt_max)
 
 
 class PIDController(nn.Module):
@@ -545,6 +575,7 @@ class PIDController(nn.Module):
         term: Optional[ODETerm] = None,
         norm: Callable[[DataTensor], NormTensor] = rms_norm,
         dt_min: Optional[float] = None,
+        dt_max: Optional[float] = None,
         safety: float = 0.9,
         factor_min: float = 0.2,
         factor_max: float = 10.0,
@@ -556,6 +587,7 @@ class PIDController(nn.Module):
         self.term = term
         self.norm = norm
         self.dt_min = dt_min
+        self.dt_max = dt_max
 
         self.pcoeff = pcoeff
         self.icoeff = icoeff
@@ -593,6 +625,7 @@ class PIDController(nn.Module):
         method_order: int,
         problem: InitialValueProblem,
         dt_min: Optional[TimeTensor],
+        dt_max: Optional[TimeTensor],
     ) -> PIDState:
         return PIDState.default(
             method_order=method_order,
@@ -600,6 +633,7 @@ class PIDController(nn.Module):
             dtype=problem.data_dtype,
             device=problem.device,
             dt_min=dt_min,
+            dt_max=dt_max,
         )
 
     @torch.jit.export
@@ -670,7 +704,12 @@ class PIDController(nn.Module):
             dt_min = torch.tensor(
                 dt_min, dtype=problem.time_dtype, device=problem.device
             )
-        return dt0, self.initial_state(method_order, problem, dt_min), f0
+        dt_max = self.dt_max
+        if dt_max is not None:
+            dt_max = torch.tensor(
+                dt_max, dtype=problem.time_dtype, device=problem.device
+            )
+        return dt0, self.initial_state(method_order, problem, dt_min, dt_max), f0
 
     @torch.jit.export
     def adapt_step_size(
@@ -724,6 +763,18 @@ class PIDController(nn.Module):
             )
             dt_next = torch.sign(dt_next) * torch.maximum(abs_dt_next, dt_min)
 
+
+        # Enforce the maximum step size
+        dt_max = state.dt_max
+        if dt_min is not None:
+            # TODO: reuse abs_dt_next if already calculated above
+            abs_dt_next = dt_next.abs()
+            # Don't really need a status code for this
+            # status = torch.where(
+            #     abs_dt_next > dt_max, Status.REACHED_DT_MAX.value, status
+            # )
+            dt_next = torch.sign(dt_next) * torch.minimum(abs_dt_next, dt_max)
+            
         return (
             accept,
             dt_next,
