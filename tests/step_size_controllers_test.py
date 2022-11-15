@@ -228,3 +228,41 @@ def test_pid_does_not_update_state_if_step_is_rejected():
     assert (state_next.prev_error_ratio[0] == state.prev_error_ratio[0]).all()
     assert (state_next.prev_prev_error_ratio[0] == state.prev_prev_error_ratio[0]).all()
     assert (state_next.prev_prev_error_ratio[1] == state.prev_error_ratio[1]).all()
+
+@pytest.mark.parametrize(
+    "controller",
+    [
+        PIDController(atol=1.0, rtol=0.0, pcoeff=0, icoeff=1, dcoeff=0, norm=max_norm),
+        IntegralController(atol=1.0, rtol=0.0, norm=max_norm),
+    ],
+)
+def test_limit_step_size(controller):
+    dt_max = torch.tensor(0.4)
+    t0 = torch.tensor([0.0, 1.5])
+    dt = torch.tensor([1.0, 0.5])
+    y0 = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+
+    problem = InitialValueProblem(y0, t0, t0 + dt, t0.reshape((-1, 1)))
+    state = controller.initial_state(method_order=5, problem=problem, dt_min=None, dt_max=dt_max)
+    result = StepResult(y0, torch.full_like(y0, 0.5))
+    accept, dt_next, state_next, status = controller.adapt_step_size(
+        t0, dt, y0, result, state, stats={}
+    )
+
+    assert accept.all()
+    assert (dt_next <= dt_max).all()
+    assert (status == Status.SUCCESS.value).all()
+    if isinstance(state, PIDState):
+        assert (state_next.prev_error_ratio != 1.0).all()
+        assert (state_next.prev_prev_error_ratio == state.prev_error_ratio).all()
+
+    accept, dt_final, state_final, status = controller.adapt_step_size(
+        t0 + dt, dt_next, y0, result, state_next, stats={}
+    )
+
+    assert accept.all()
+    assert (dt_final <= dt_max).all()
+    assert (status == Status.SUCCESS.value).all()
+    if isinstance(state, PIDState):
+        assert (state_next.prev_error_ratio != 1.0).all()
+        assert (state_final.prev_prev_error_ratio == state_final.prev_error_ratio).all()
