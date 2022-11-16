@@ -234,7 +234,7 @@ class IntegralState:
         return (
             f"IState(method_order={self.method_order}, "
             f"almost_zero={self.almost_zero}, "
-            f"dt_min={self.dt_min})"
+            f"dt_min={self.dt_min}), "
             f"dt_max={self.dt_max})"
         )
 
@@ -408,26 +408,17 @@ class IntegralController(nn.Module):
             Status.INFINITE_NORM.value,
         )
 
-        # Enforce the minimum step size
+        # Enforce the minimum and maximum step size
         dt_min = state.dt_min
-        if dt_min is not None:
-            abs_dt_next = dt_next.abs()
-            status = torch.where(
-                abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
-            )
-            dt_next = torch.sign(dt_next) * torch.maximum(abs_dt_next, dt_min)
-            
-        # Enforce the maximum step size
         dt_max = state.dt_max
-        if dt_max is not None:
-            # TODO: reuse abs_dt_next if already calculated above
+        if dt_min is not None or dt_max is not None:
             abs_dt_next = dt_next.abs()
-            # Don't really need a status code for this
-            # status = torch.where(
-            #     abs_dt_next > dt_max, Status.REACHED_DT_MAX.value, status
-            # )
-            dt_next = torch.sign(dt_next) * torch.minimum(abs_dt_next, dt_max)
-            
+            dt_next = torch.sign(dt_next) * torch.clamp(abs_dt_next, dt_min, dt_max)
+            if dt_min is not None:
+                status = torch.where(
+                    abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
+                )
+
         return (
             accept,
             dt_next,
@@ -528,7 +519,7 @@ class PIDState:
             f"prev_error_ratio={self.prev_error_ratio}), "
             f"prev_prev_error_ratio={self.prev_prev_error_ratio}, "
             f"almost_zero={self.almost_zero}, "
-            f"dt_min={self.dt_min})"
+            f"dt_min={self.dt_min}), "
             f"dt_max={self.dt_max})"
         )
 
@@ -549,7 +540,9 @@ class PIDState:
         else:
             float_min = 1e-38
         almost_zero = torch.tensor(float_min, dtype=dtype, device=device)
-        return PIDState(method_order, default_ratio, default_ratio, almost_zero, dt_min, dt_max)
+        return PIDState(
+            method_order, default_ratio, default_ratio, almost_zero, dt_min, dt_max
+        )
 
 
 class PIDController(nn.Module):
@@ -754,27 +747,17 @@ class PIDController(nn.Module):
             Status.INFINITE_NORM.value,
         )
 
-        # Enforce the minimum step size
+        # Enforce the minimum and maximum step size
         dt_min = state.dt_min
-        if dt_min is not None:
-            abs_dt_next = dt_next.abs()
-            status = torch.where(
-                abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
-            )
-            dt_next = torch.sign(dt_next) * torch.maximum(abs_dt_next, dt_min)
-
-
-        # Enforce the maximum step size
         dt_max = state.dt_max
-        if dt_max is not None:
-            # TODO: reuse abs_dt_next if already calculated above
+        if dt_min is not None or dt_max is not None:
             abs_dt_next = dt_next.abs()
-            # Don't really need a status code for this
-            # status = torch.where(
-            #     abs_dt_next > dt_max, Status.REACHED_DT_MAX.value, status
-            # )
-            dt_next = torch.sign(dt_next) * torch.minimum(abs_dt_next, dt_max)
-            
+            dt_next = torch.sign(dt_next) * torch.clamp(abs_dt_next, dt_min, dt_max)
+            if dt_min is not None:
+                status = torch.where(
+                    abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
+                )
+
         return (
             accept,
             dt_next,
