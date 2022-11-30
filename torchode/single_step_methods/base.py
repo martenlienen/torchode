@@ -1,4 +1,4 @@
-from typing import Any, Generic, NamedTuple, Optional, TypeVar
+from typing import Any, Dict, Generic, NamedTuple, Optional, Tuple, TypeVar
 
 import torch.nn as nn
 
@@ -24,7 +24,7 @@ class SingleStepMethod(nn.Module, Generic[MethodState, InterpolationData]):
         problem: InitialValueProblem,
         f0: Optional[DataTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
     ) -> MethodState:
         raise NotImplementedError()
@@ -38,9 +38,9 @@ class SingleStepMethod(nn.Module, Generic[MethodState, InterpolationData]):
         dt: TimeTensor,
         state: MethodState,
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[StepResult, InterpolationData, MethodState, Optional[StatusTensor]]:
+    ) -> Tuple[StepResult, InterpolationData, MethodState, Optional[StatusTensor]]:
         """Advance the solution from `y0` to `y0+dt`.
 
         Arguments

@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -60,12 +60,12 @@ class ButcherTableau:
     @staticmethod
     def from_lists(
         *,
-        c: list[float],
-        a: list[list[float]],
-        b: list[float],
-        b_err: Optional[list[float]] = None,
-        b_low_order: Optional[list[float]] = None,
-        b_other: Optional[list[list[float]]] = None,
+        c: List[float],
+        a: List[List[float]],
+        b: List[float],
+        b_err: Optional[List[float]] = None,
+        b_low_order: Optional[List[float]] = None,
+        b_other: Optional[List[List[float]]] = None,
     ):
         assert b_err is not None or b_low_order is not None, (
             "You have to provide either the weights for the error approximation"
@@ -186,7 +186,7 @@ class ExplicitRungeKutta(nn.Module):
         problem: InitialValueProblem,
         f0: Optional[DataTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
     ) -> ERKState:
         if self.tableau.fsal:
@@ -233,9 +233,9 @@ class ExplicitRungeKutta(nn.Module):
         dt: TimeTensor,
         state: ERKState,
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[StepResult, ERKInterpolationData, ERKState, Optional[StatusTensor]]:
+    ) -> Tuple[StepResult, ERKInterpolationData, ERKState, Optional[StatusTensor]]:
         term_ = term
         if torch.jit.is_scripting() or term_ is None:
             assert term is None, "The integration term is fixed for JIT compilation"

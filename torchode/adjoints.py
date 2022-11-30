@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import functorch
 import torch
@@ -441,11 +441,11 @@ class AugmentedDynamicsTerm(nn.Module):
             randomness=self.vmap_randomness,
         )
 
-    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
     ) -> DataTensor:
         shapes, args = args
 
@@ -509,11 +509,11 @@ class UnwrappingODETerm(nn.Module):
 
         self.term = term
 
-    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
     ) -> DataTensor:
         """Evaluate the vector field."""
         batch_size, t_intercept, t_slope, term_args = args
@@ -538,11 +538,11 @@ class JointAugmentedDynamicsTerm(nn.Module):
         self.term = term
         self.parameters = list(self.term.parameters())
 
-    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
     ) -> DataTensor:
         shapes, term_args = args
 

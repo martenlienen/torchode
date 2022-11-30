@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 name = "torchode"
 dynamic = ["version", "description"]
 readme = "README.md"
-requires-python = ">= 3.10"
+requires-python = ">= 3.8"
 license = {file = "LICENSE"}
 authors = [{name = "Marten Lienen", email = "m.lienen@tum.de"}]
 classifiers = [

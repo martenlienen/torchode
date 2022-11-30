@@ -1,4 +1,4 @@
-from typing import Any, Callable, Final, Optional
+from typing import Any, Callable, Dict, Final, Optional
 
 import torch.nn as nn
 
@@ -39,7 +39,7 @@ class ODETerm(nn.Module):
         self.with_args = with_args
 
     @torch.jit.export
-    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
         if not self.with_stats:
             return
         # There is no reason for these to be on the GPU
@@ -48,7 +48,7 @@ class ODETerm(nn.Module):
         )
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
     ) -> DataTensor:
         """Evaluate the vector field."""
         if self.with_stats:

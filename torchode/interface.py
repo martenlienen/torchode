@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import torch
 
@@ -26,7 +26,7 @@ def solve_ivp(
     y0: DataTensor,
     t_eval: EvaluationTimesTensor,
     *,
-    t_span: Optional[tuple[TimeTensor, TimeTensor]] = None,
+    t_span: Optional[Tuple[TimeTensor, TimeTensor]] = None,
     method: Union[str, SingleStepMethod] = "tsit5",
     max_steps: Optional[int] = None,
     controller: Optional[StepSizeController] = None,

@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Any, Callable, Generic, NamedTuple, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, NamedTuple, Optional, Tuple, TypeVar
 
 import torch
 import torch.nn as nn
@@ -23,9 +23,9 @@ class StepSizeController(nn.Module, Generic[ControllerState]):
         method_order: int,
         dt0: Optional[TimeTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[TimeTensor, ControllerState, Optional[DataTensor]]:
+    ) -> Tuple[TimeTensor, ControllerState, Optional[DataTensor]]:
         """Find the initial step size and initialize the controller state
 
         If the user suggests an initial step size, the controller should go with that
@@ -59,8 +59,8 @@ class StepSizeController(nn.Module, Generic[ControllerState]):
         y0: DataTensor,
         step_result: StepResult,
         state: ControllerState,
-        stats: dict[str, Any],
-    ) -> tuple[AcceptTensor, TimeTensor, ControllerState, Optional[StatusTensor]]:
+        stats: Dict[str, Any],
+    ) -> Tuple[AcceptTensor, TimeTensor, ControllerState, Optional[StatusTensor]]:
         """Adapt the integration step size based on the step just taken
 
         Arguments
@@ -133,7 +133,7 @@ class FixedStepController(StepSizeController[FixedStepState]):
         method_order: int,
         dt0: Optional[TimeTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
     ):
         assert dt0 is not None, "Fixed step size solving requires you to configure dt0"
@@ -156,8 +156,8 @@ class FixedStepController(StepSizeController[FixedStepState]):
         y0: DataTensor,
         step_result: StepResult,
         state: FixedStepState,
-        stats: dict[str, Any],
-    ) -> tuple[AcceptTensor, TimeTensor, FixedStepState, Optional[StatusTensor]]:
+        stats: Dict[str, Any],
+    ) -> Tuple[AcceptTensor, TimeTensor, FixedStepState, Optional[StatusTensor]]:
         return state.accept_all, state.dt0, state, None
 
     @torch.jit.export
@@ -338,9 +338,9 @@ class IntegralController(nn.Module):
         method_order: int,
         dt0: Optional[TimeTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[TimeTensor, IntegralState, Optional[DataTensor]]:
+    ) -> Tuple[TimeTensor, IntegralState, Optional[DataTensor]]:
         if dt0 is None:
             dt0, f0 = self._select_initial_step(
                 term,
@@ -373,8 +373,8 @@ class IntegralController(nn.Module):
         y0: DataTensor,
         step_result: StepResult,
         state: IntegralState,
-        stats: dict[str, Any],
-    ) -> tuple[AcceptTensor, TimeTensor, IntegralState, Optional[StatusTensor]]:
+        stats: Dict[str, Any],
+    ) -> Tuple[AcceptTensor, TimeTensor, IntegralState, Optional[StatusTensor]]:
         y1, error_estimate = step_result.y, step_result.error_estimate
 
         if error_estimate is None:
@@ -433,9 +433,9 @@ class IntegralController(nn.Module):
         y0: DataTensor,
         direction: torch.Tensor,
         convergence_order: int,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[TimeTensor, DataTensor]:
+    ) -> Tuple[TimeTensor, DataTensor]:
         """Empirically select a good initial step.
 
         This is an adaptation of the algorithm described in [1]_. We changed it in such a
@@ -677,9 +677,9 @@ class PIDController(nn.Module):
         method_order: int,
         dt0: Optional[TimeTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[TimeTensor, PIDState, Optional[DataTensor]]:
+    ) -> Tuple[TimeTensor, PIDState, Optional[DataTensor]]:
         if dt0 is None:
             dt0, f0 = self._select_initial_step(
                 term,
@@ -712,8 +712,8 @@ class PIDController(nn.Module):
         y0: DataTensor,
         step_result: StepResult,
         state: PIDState,
-        stats: dict[str, Any],
-    ) -> tuple[AcceptTensor, TimeTensor, PIDState, Optional[StatusTensor]]:
+        stats: Dict[str, Any],
+    ) -> Tuple[AcceptTensor, TimeTensor, PIDState, Optional[StatusTensor]]:
         y1, error_estimate = step_result.y, step_result.error_estimate
 
         if error_estimate is None:
@@ -772,9 +772,9 @@ class PIDController(nn.Module):
         y0: DataTensor,
         direction: torch.Tensor,
         convergence_order: int,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[TimeTensor, DataTensor]:
+    ) -> Tuple[TimeTensor, DataTensor]:
         """Empirically select a good initial step.
 
         This is an adaptation of the algorithm described in [1]_. We changed it in such a

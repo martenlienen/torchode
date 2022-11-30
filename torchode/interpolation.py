@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Tuple
 
 import torch
 
@@ -65,7 +65,7 @@ class ThirdOrderPolynomialInterpolation:
         self,
         t0: TimeTensor,
         t1: TimeTensor,
-        coefficients: tuple[DataTensor, DataTensor, DataTensor, DataTensor],
+        coefficients: Tuple[DataTensor, DataTensor, DataTensor, DataTensor],
     ):
         self.t0 = t0
         self.t1 = t1
@@ -123,7 +123,7 @@ class FourthOrderPolynomialInterpolation:
         self,
         t0: TimeTensor,
         t1: TimeTensor,
-        coefficients: tuple[DataTensor, DataTensor, DataTensor, DataTensor, DataTensor],
+        coefficients: Tuple[DataTensor, DataTensor, DataTensor, DataTensor, DataTensor],
     ):
         self.t0 = t0
         self.t1 = t1

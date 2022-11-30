@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Optional
+from typing import Any, Dict, NamedTuple, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -33,7 +33,7 @@ class Euler(nn.Module):
         problem: InitialValueProblem,
         f0: Optional[DataTensor],
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
     ) -> NoneType:
         return None
@@ -48,9 +48,9 @@ class Euler(nn.Module):
         dt: TimeTensor,
         state: NoneType,
         *,
-        stats: dict[str, Any],
+        stats: Dict[str, Any],
         args: Any,
-    ) -> tuple[StepResult, LinearInterpolationData, NoneType, Optional[StatusTensor]]:
+    ) -> Tuple[StepResult, LinearInterpolationData, NoneType, Optional[StatusTensor]]:
         term_ = term
         if torch.jit.is_scripting() or term_ is None:
             assert term is None, "The integration term is fixed for JIT compilation"
