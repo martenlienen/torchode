@@ -261,6 +261,26 @@ def test_finished_solves_do_not_update_dt():
     assert (dts[:, 1] < 1.1).all()
 
 
+def test_solution_is_only_evaluated_inside_of_integration_range():
+    t_eval = torch.tensor([[0.1, 2.0], [0.3, 0.3 + 1e-3], [1.0, 1.0 - 5e-1]])
+    t_start, t_end = t_eval.T
+    y, term, problem = get_problem("sine", t_eval)
+    error = lambda y: 0.01 * torch.ones_like(y)
+    step_method = StubStepMethod(y, Status.SUCCESS.value, error=error)
+    step_method.step = Mock(side_effect=step_method.step)
+    step_size_controller = IntegralController(atol=1.0, rtol=0.0, term=term)
+
+    solution = AutoDiffAdjoint(step_method, step_size_controller).solve(problem)
+    step_times = torch.stack([args[0][3] for args in step_method.step.call_args_list])
+
+    t_min, t_max = torch.minimum(t_start, t_end), torch.maximum(t_start, t_end)
+    assert (step_times >= t_min).all()
+    assert (step_times <= t_max).all()
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 3
+    assert solution.ts.tolist() == problem.t_eval.tolist()
+
+
 def test_stops_on_non_successful_adapt_step_size():
     y, _, problem = get_problem("sine", [[0.0, 2.0], [2.0, 4.0]])
     step_method = StubStepMethod(y, Status.SUCCESS.value)

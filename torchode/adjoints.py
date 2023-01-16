@@ -63,6 +63,10 @@ class AutoDiffAdjoint(nn.Module):
         stats_n_accepted = y.new_zeros(batch_size, dtype=torch.long)
         stats: Dict[str, Any] = {}
 
+        # Compute the boundaries in time to ensure that we never step outside of them
+        t_min = torch.minimum(t_start, t_end)
+        t_max = torch.maximum(t_end, t_start)
+
         # TorchScript is not smart enough yet to figure out that we only access these
         # variables when they have been defined, so we have to always define them and
         # intialize them to any valid tensor.
@@ -101,6 +105,9 @@ class AutoDiffAdjoint(nn.Module):
             term, problem, convergence_order, dt0, stats=stats, args=args
         )
         method_state = step_method.init(term, problem, f0, stats=stats, args=args)
+
+        # Ensure that the initial dt does not step outside of the time domain
+        dt = torch.clamp(dt, t_min - t, t_max - t)
 
         # TorchScript does not support set_grad_enabled, so we detach manually
         if not self.backprop_through_step_size_control:
@@ -212,7 +219,7 @@ class AutoDiffAdjoint(nn.Module):
                         time_direction[:, None],
                         t[:, None],
                     )
-                    > 0.0
+                    >= 0.0
                 ) & not_yet_evaluated
                 if to_be_evaluated.any():
                     interpolation = step_method.build_interpolation(interp_data)
@@ -236,6 +243,9 @@ class AutoDiffAdjoint(nn.Module):
             # its final error was small and another instance is running for many steps.
             # This would then cancel the solve even though the "problematic" instance is
             # not even supposed to be running anymore.
+
+            # Ensure that we do not step outside of the time domain
+            dt_next = torch.clamp(dt_next, t_min - t, t_max - t)
 
             dt = torch.where(running, dt_next, dt)
             controller_state = step_size_controller.merge_states(
