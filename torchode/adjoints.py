@@ -244,10 +244,12 @@ class AutoDiffAdjoint(nn.Module):
             # This would then cancel the solve even though the "problematic" instance is
             # not even supposed to be running anymore.
 
-            # Ensure that we do not step outside of the time domain
-            dt_next = torch.clamp(dt_next, t_min - t, t_max - t)
-
             dt = torch.where(running, dt_next, dt)
+
+            # Ensure that we do not step outside of the time domain, even for instances
+            # that are not running anymore
+            dt = torch.clamp(dt, t_min - t, t_max - t)
+
             controller_state = step_size_controller.merge_states(
                 running, controller_state_next, controller_state
             )

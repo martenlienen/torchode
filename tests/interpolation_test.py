@@ -6,6 +6,7 @@ from pytest import approx
 from torchode import Tsit5
 from torchode.interpolation import (
     FourthOrderPolynomialInterpolation,
+    LinearInterpolation,
     ThirdOrderPolynomialInterpolation,
 )
 from torchode.single_step_methods.runge_kutta import ERKInterpolationData
@@ -23,6 +24,31 @@ def test_third_order_evaluation_batch():
     t = (t0 + t1) * 0.5
     idx = torch.arange(batch_size)
     assert np.allclose(interp.evaluate(t, idx).numpy(), p(0.5))
+
+
+def test_linear_interp_with_dt_equals_zero():
+    t0 = torch.tensor([1.0])
+    y0 = torch.rand((1, 5))
+    interp = LinearInterpolation(t0, torch.zeros((1,)), y0, y0)
+
+    idx = torch.tensor([0], dtype=torch.long)
+    assert not torch.isnan(interp.evaluate(t0, idx)).any()
+
+
+def test_third_order_with_dt_equals_zero():
+    t0 = torch.tensor([1.0])
+    interp = ThirdOrderPolynomialInterpolation(t0, t0, torch.rand((4, 1, 2)))
+
+    idx = torch.tensor([0], dtype=torch.long)
+    assert not torch.isnan(interp.evaluate(t0, idx)).any()
+
+
+def test_fourth_order_with_dt_equals_zero():
+    t0 = torch.tensor([1.0])
+    interp = FourthOrderPolynomialInterpolation(t0, t0, torch.rand((5, 1, 2)))
+
+    idx = torch.tensor([0], dtype=torch.long)
+    assert not torch.isnan(interp.evaluate(t0, idx)).any()
 
 
 def test_third_order_coefficients_from_k():

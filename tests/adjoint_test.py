@@ -262,22 +262,33 @@ def test_finished_solves_do_not_update_dt():
 
 
 def test_solution_is_only_evaluated_inside_of_integration_range():
-    t_eval = torch.tensor([[0.1, 2.0], [0.3, 0.3 + 1e-3], [1.0, 1.0 - 5e-1]])
+    t_eval = torch.tensor(
+        [
+            # Long running case
+            [0.1, 1.0],
+            # Case where just adding dt would go out of bounds
+            [1.0, 2.0],
+            # Integration in the negative direction
+            [1.0, 0.95],
+        ]
+    )
     t_start, t_end = t_eval.T
     y, term, problem = get_problem("sine", t_eval)
-    error = lambda y: 0.01 * torch.ones_like(y)
-    step_method = StubStepMethod(y, Status.SUCCESS.value, error=error)
-    step_method.step = Mock(side_effect=step_method.step)
-    step_size_controller = IntegralController(atol=1.0, rtol=0.0, term=term)
+    term.vf = Mock(side_effect=term.vf)
+    step_method = Dopri5(term=term)
+    dt = [0.1, 0.4, -0.02]
+    step_size_controller = StubStepSizeController(
+        dt, dt, True, [Status.SUCCESS.value] * len(t_eval)
+    )
 
     solution = AutoDiffAdjoint(step_method, step_size_controller).solve(problem)
-    step_times = torch.stack([args[0][3] for args in step_method.step.call_args_list])
+    eval_times = torch.stack([args[0][0] for args in term.vf.call_args_list])
 
     t_min, t_max = torch.minimum(t_start, t_end), torch.maximum(t_start, t_end)
-    assert (step_times >= t_min).all()
-    assert (step_times <= t_max).all()
+    assert (eval_times >= t_min).all()
+    assert (eval_times <= t_max).all()
 
-    assert solution.status.tolist() == [Status.SUCCESS.value] * 3
+    assert solution.status.tolist() == [Status.SUCCESS.value] * len(t_eval)
     assert solution.ts.tolist() == problem.t_eval.tolist()
 
 

@@ -10,7 +10,9 @@ def poly3eval(d, c, b, a, t, t0, t1):
 
     The coefficients a..3 define the polynomial on the interval [0, 1].
     """
-    x = ((t - t0) / (t1 - t0))[:, None].to(dtype=a.dtype)
+    dt = (t1 - t0)
+    dt = torch.where(dt.abs() > 0.0, dt, 1.0)
+    x = ((t - t0) / dt)[:, None].to(dtype=a.dtype)
 
     # Evaluate the polynomial with Horner's method
     y = a
@@ -25,7 +27,9 @@ def poly4eval(e, d, c, b, a, t, t0, t1):
 
     The coefficients a..e define the polynomial on the interval [0, 1].
     """
-    x = ((t - t0) / (t1 - t0))[:, None].to(dtype=a.dtype)
+    dt = (t1 - t0)
+    dt = torch.where(dt.abs() > 0.0, dt, 1.0)
+    x = ((t - t0) / (dt))[:, None].to(dtype=a.dtype)
 
     # Evaluate the polynomial with Horner's method
     y = a
@@ -49,7 +53,9 @@ class LinearInterpolation:
         self.dy = y1 - y0
 
     def evaluate(self, t: TimeTensor, idx: SampleIndexTensor) -> DataTensor:
-        x = ((t - self.t0[idx]) / self.dt[idx])[:, None].to(dtype=self.y0.dtype)
+        dt = self.dt[idx]
+        dt = torch.where(dt.abs() > 0.0, dt, 1.0)
+        x = ((t - self.t0[idx]) / dt)[:, None].to(dtype=self.y0.dtype)
 
         return torch.addcmul(self.y0[idx], self.dy[idx], x)
 
