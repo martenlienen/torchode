@@ -23,7 +23,8 @@ def test_can_be_jitted_with_torch_script(step_method):
 
 
 methods = [Dopri5, Heun, Tsit5]
-if version.parse(torch.__version__).base_version != "1.13.0":
+v = version.parse(torch.__version__)
+if (v.major, v.minor) != (1, 13):
     # In pytorch 1.13.0, Euler triggers an internal error in the JIT compiler
     # specifically in this next test, so we just exclude it
     methods.append(Euler)
