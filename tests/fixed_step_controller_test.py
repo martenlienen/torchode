@@ -1,3 +1,4 @@
+from pytest import approx
 import pytest
 import torch
 from problems import get_problem
@@ -15,4 +16,4 @@ def test_solve_with_fixed_steps(step_method):
 
     assert solution.status.tolist() == [Status.SUCCESS.value] * 2
     assert (solution.ts == problem.t_eval).all()
-    assert torch.allclose(solution.ys, f(problem.t_eval), rtol=1e-2)
+    assert solution.ys.numpy() == approx(f(problem.t_eval), rel=1e-2)

@@ -149,11 +149,11 @@ def test_rejected_steps_continue_at_same_place():
 
     step_times = torch.stack([args[0][3] for args in step_method.step.call_args_list])
     expected_step_times = [
-        [0.0000, 1.0000],
-        [0.1000, 1.1000],
-        [0.6000, 1.1000],
-        [1.1000, 1.1000],
-        [1.1000, 1.6000],
+        [0.0, 1.0],
+        [0.1, 1.1],
+        [0.6, 1.1],
+        [1.0, 1.1],
+        [1.0, 1.6],
     ]
     assert step_times.numpy() == approx(np.array(expected_step_times))
     assert (solution.status == Status.SUCCESS.value).all()
