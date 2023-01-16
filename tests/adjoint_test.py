@@ -350,7 +350,6 @@ def test_solving_in_opposite_directions_at_the_same_time(controller):
         t_eval=[[0.0, 3.0, 5.0], [2.0, 0.5, -8.0]],
     )
     step_method = Dopri5()
-    step_size_controller = IntegralController(1e-8, 1e-8)
     adjoint = AutoDiffAdjoint(step_method, controller)
     solution = adjoint.solve(problem, term=term)
 
