@@ -342,11 +342,13 @@ class IntegralController(nn.Module):
         args: Any,
     ) -> Tuple[TimeTensor, IntegralState, Optional[DataTensor]]:
         if dt0 is None:
+            dt_max = (problem.t_end - problem.t_start).abs()
             dt0, f0 = self._select_initial_step(
                 term,
                 problem.t_start,
                 problem.y0,
                 problem.time_direction,
+                dt_max,
                 method_order,
                 stats,
                 args,
@@ -432,6 +434,7 @@ class IntegralController(nn.Module):
         t0: TimeTensor,
         y0: DataTensor,
         direction: torch.Tensor,
+        dt_max: TimeTensor,
         convergence_order: int,
         stats: Dict[str, Any],
         args: Any,
@@ -463,6 +466,9 @@ class IntegralController(nn.Module):
 
         small_number = torch.tensor(1e-6, dtype=d0.dtype, device=d0.device)
         dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
+
+        # Ensure that we don't step out of the integration bounds
+        dt0 = torch.minimum(dt0, dt_max)
 
         y1 = torch.addcmul(y0, (direction.to(dtype=dt0.dtype) * dt0)[:, None], f0)
         f1 = term.vf(
@@ -681,11 +687,13 @@ class PIDController(nn.Module):
         args: Any,
     ) -> Tuple[TimeTensor, PIDState, Optional[DataTensor]]:
         if dt0 is None:
+            dt_max = (problem.t_end - problem.t_start).abs()
             dt0, f0 = self._select_initial_step(
                 term,
                 problem.t_start,
                 problem.y0,
                 problem.time_direction,
+                dt_max,
                 method_order,
                 stats,
                 args,
@@ -771,6 +779,7 @@ class PIDController(nn.Module):
         t0: TimeTensor,
         y0: DataTensor,
         direction: torch.Tensor,
+        dt_max: TimeTensor,
         convergence_order: int,
         stats: Dict[str, Any],
         args: Any,
@@ -802,6 +811,9 @@ class PIDController(nn.Module):
 
         small_number = torch.tensor(1e-6, dtype=d0.dtype, device=d0.device)
         dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
+
+        # Ensure that we don't step out of the integration bounds
+        dt0 = torch.minimum(dt0, dt_max)
 
         y1 = torch.addcmul(y0, (direction.to(dtype=dt0.dtype) * dt0)[:, None], f0)
         f1 = term.vf(

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Clamp the timestep to the integration range even for instances that are already finished
+  and in the selection of the initial step size
 
 ## 0.1.3 - 2023-01-16
 
