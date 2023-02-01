@@ -11,6 +11,7 @@ plugins:
 
 nav:
   - "Introduction": README.md
+  - step-size-controllers.md
   - jit.ipynb
   - torchdiffeq.ipynb
   - comparison.md
