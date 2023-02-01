@@ -468,14 +468,11 @@ class IntegralController(nn.Module):
         dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
 
         # Ensure that we don't step out of the integration bounds
-        dt0 = torch.minimum(dt0, dt_max)
+        dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
 
-        y1 = torch.addcmul(y0, (direction.to(dtype=dt0.dtype) * dt0)[:, None], f0)
+        y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
-            torch.addcmul(t0, direction.to(dtype=t0.dtype), dt0.to(dtype=t0.dtype)),
-            y1,
-            stats,
-            args,
+            torch.addcmul(t0, direction, dt0.to(dtype=t0.dtype)), y1, stats, args
         )
 
         d2 = norm((f1 - f0) * inv_scale) / dt0
@@ -813,14 +810,11 @@ class PIDController(nn.Module):
         dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
 
         # Ensure that we don't step out of the integration bounds
-        dt0 = torch.minimum(dt0, dt_max)
+        dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
 
-        y1 = torch.addcmul(y0, (direction.to(dtype=dt0.dtype) * dt0)[:, None], f0)
+        y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
-            torch.addcmul(t0, direction.to(dtype=t0.dtype), dt0.to(dtype=t0.dtype)),
-            y1,
-            stats,
-            args,
+            torch.addcmul(t0, direction, dt0.to(dtype=t0.dtype)), y1, stats, args
         )
 
         d2 = norm((f1 - f0) * inv_scale) / dt0
