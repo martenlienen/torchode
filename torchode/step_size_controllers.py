@@ -4,9 +4,9 @@ from typing import Any, Callable, Dict, Generic, NamedTuple, Optional, Tuple, Ty
 import torch
 import torch.nn as nn
 
+from . import status_codes
 from .problems import InitialValueProblem
 from .single_step_methods import StepResult
-from .status_codes import Status
 from .terms import ODETerm
 from .typing import *
 
@@ -406,8 +406,8 @@ class IntegralController(nn.Module):
         # Check for infinities and NaN
         status = torch.where(
             torch.isfinite(error_ratio),
-            Status.SUCCESS.value,
-            Status.INFINITE_NORM.value,
+            status_codes.SUCCESS,
+            status_codes.INFINITE_NORM,
         )
 
         # Enforce the minimum and maximum step size
@@ -418,7 +418,7 @@ class IntegralController(nn.Module):
             dt_next = torch.sign(dt_next) * torch.clamp(abs_dt_next, dt_min, dt_max)
             if dt_min is not None:
                 status = torch.where(
-                    abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
+                    abs_dt_next < dt_min, status_codes.REACHED_DT_MIN, status
                 )
 
         return (
@@ -748,8 +748,8 @@ class PIDController(nn.Module):
         # Check for infinities and NaN
         status = torch.where(
             torch.isfinite(error_ratio),
-            Status.SUCCESS.value,
-            Status.INFINITE_NORM.value,
+            status_codes.SUCCESS,
+            status_codes.INFINITE_NORM,
         )
 
         # Enforce the minimum and maximum step size
@@ -760,7 +760,7 @@ class PIDController(nn.Module):
             dt_next = torch.sign(dt_next) * torch.clamp(abs_dt_next, dt_min, dt_max)
             if dt_min is not None:
                 status = torch.where(
-                    abs_dt_next < dt_min, Status.REACHED_DT_MIN.value, status
+                    abs_dt_next < dt_min, status_codes.REACHED_DT_MIN, status
                 )
 
         return (

@@ -4,10 +4,10 @@ import functorch
 import torch
 import torch.nn as nn
 
+from . import status_codes
 from .problems import InitialValueProblem
 from .single_step_methods import SingleStepMethod
 from .solution import Solution
-from .status_codes import Status
 from .step_size_controllers import StepSizeController
 from .terms import ODETerm
 from .typing import *
@@ -177,8 +177,8 @@ class AutoDiffAdjoint(nn.Module):
             if max_steps is not None:
                 status = torch.where(
                     stats_n_steps >= max_steps,
-                    Status.REACHED_MAX_STEPS.value,
-                    status if status is not None else Status.SUCCESS.value,
+                    status_codes.REACHED_MAX_STEPS,
+                    status if status is not None else status_codes.SUCCESS,
                 )
 
             # We evaluate the termination condition here already and initiate a
@@ -187,7 +187,7 @@ class AutoDiffAdjoint(nn.Module):
             continue_iterating = torch.any(running)
             if status is not None:
                 continue_iterating = continue_iterating & torch.all(
-                    status == Status.SUCCESS.value
+                    status == status_codes.SUCCESS
                 )
             continue_iterating = continue_iterating.to("cpu", non_blocking=True)
 
@@ -266,7 +266,7 @@ class AutoDiffAdjoint(nn.Module):
             # Ensure that the user always gets a status tensor
             if status is None:
                 status = torch.tensor(
-                    Status.SUCCESS.value, dtype=torch.long, device=device
+                    status_codes.SUCCESS, dtype=torch.long, device=device
                 ).expand(batch_size)
 
             # Put the step statistics into the stats dict in the end, so that
