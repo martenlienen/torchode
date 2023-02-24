@@ -53,7 +53,7 @@ markdown==3.3.7
     #   mkdocs
     #   mkdocs-material
     #   pymdown-extensions
-markdown-it-py==2.1.0
+markdown-it-py==2.2.0
     # via
     #   jupytext
     #   mdit-py-plugins
@@ -71,11 +71,11 @@ mistune==0.8.4
     # via nbconvert
 mkdocs==1.4.1
     # via
-    #   -r docs/requirements.in
+    #   -r requirements.in
     #   mkdocs-jupyter
     #   mkdocs-material
 mkdocs-jupyter==0.22.0
-    # via -r docs/requirements.in
+    # via -r requirements.in
 mkdocs-material==8.5.7
     # via mkdocs-jupyter
 mkdocs-material-extensions==1.1
