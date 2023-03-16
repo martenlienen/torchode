@@ -13,5 +13,6 @@ nav:
   - "Introduction": README.md
   - step-size-controllers.md
   - jit.ipynb
+  - extra-args.md
   - torchdiffeq.ipynb
   - comparison.md
