@@ -472,7 +472,10 @@ class IntegralController(nn.Module):
 
         y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
-            torch.addcmul(t0, direction, dt0.to(dtype=t0.dtype)), y1, stats, args
+            torch.addcmul(t0, direction.to(dtype=t0.dtype), dt0.to(dtype=t0.dtype)),
+            y1,
+            stats,
+            args,
         )
 
         d2 = norm((f1 - f0) * inv_scale) / dt0
@@ -814,7 +817,10 @@ class PIDController(nn.Module):
 
         y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
-            torch.addcmul(t0, direction, dt0.to(dtype=t0.dtype)), y1, stats, args
+            torch.addcmul(t0, direction.to(dtype=t0.dtype), dt0.to(dtype=t0.dtype)),
+            y1,
+            stats,
+            args,
         )
 
         d2 = norm((f1 - f0) * inv_scale) / dt0
