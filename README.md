@@ -51,7 +51,10 @@ term = to.ODETerm(f)
 step_method = to.Dopri5(term=term)
 step_size_controller = to.IntegralController(atol=1e-6, rtol=1e-3, term=term)
 solver = to.AutoDiffAdjoint(step_method, step_size_controller)
-jit_solver = torch.jit.script(solver)
+jit_solver = torch.compile(solver)
+
+# For pytorch versions < 2.0, use the older TorchScript compiler
+#jit_solver = torch.jit.script(solver)
 
 sol = jit_solver.solve(to.InitialValueProblem(y0=y0, t_eval=t_eval))
 print(sol.stats)

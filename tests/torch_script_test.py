@@ -6,13 +6,22 @@ from pytest import approx
 
 from torchode import AutoDiffAdjoint, Dopri5, Euler, Heun, IntegralController, Tsit5
 
+torch_version = version.parse(torch.__version__)
+
+
+def compile(module):
+    if torch_version.major < 2:
+        return torch.jit.script(module)
+    else:
+        return torch.compile(module)
+
 
 @pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5, Euler])
 def test_can_be_jitted_with_torch_script(step_method):
     _, term, problem = get_problem("sine", [[0.1, 0.15, 1.0], [1.0, 1.9, 2.0]])
     step_size_controller = IntegralController(1e-3, 1e-3, term=term)
     adjoint = AutoDiffAdjoint(step_method(term), step_size_controller)
-    jitted = torch.jit.script(adjoint)
+    jitted = compile(adjoint)
 
     dt0 = torch.tensor([0.01, 0.01]) if step_method is Euler else None
     solution = adjoint.solve(problem, dt0=dt0)
@@ -23,9 +32,9 @@ def test_can_be_jitted_with_torch_script(step_method):
 
 
 methods = [Dopri5, Heun, Tsit5]
-v = version.parse(torch.__version__)
-if (v.major, v.minor) != (1, 13):
-    # In pytorch 1.13.0, Euler triggers an internal error in the JIT compiler
+v = torch_version
+if (v.major, v.minor) not in [(1, 13), (2, 0)]:
+    # In pytorch 1.13.0 and 2.0, Euler triggers an internal error in the JIT compiler
     # specifically in this next test, so we just exclude it
     methods.append(Euler)
 
@@ -42,7 +51,7 @@ def test_passing_term_dynamically_equals_fixed_term(step_method):
 
     controller_jit = IntegralController(1e-3, 1e-3, term=term)
     adjoint_jit = AutoDiffAdjoint(step_method(term), controller_jit)
-    solution_jit = torch.jit.script(adjoint_jit).solve(problem, dt0=dt0)
+    solution_jit = compile(adjoint_jit).solve(problem, dt0=dt0)
 
     assert solution.ts == approx(solution_jit.ts)
     assert solution.ys == approx(solution_jit.ys, abs=1e-3, rel=1e-3)

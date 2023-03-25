@@ -19,7 +19,7 @@ classifiers = [
 ]
 dependencies = [
   "sympy ~= 1.10",
-  "torch ~= 1.11",
+  "torch >= 1.11",
   "torchtyping ~= 0.1.4",
   # functorch has been integrated into pytorch and this is just a dummy dependency for
   # compatibility with pytorch <= 1.13
