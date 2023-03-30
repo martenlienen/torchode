@@ -14,5 +14,6 @@ nav:
   - step-size-controllers.md
   - jit.ipynb
   - extra-args.md
+  - nd-data.md
   - torchdiffeq.ipynb
   - comparison.md
