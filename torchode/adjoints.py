@@ -352,6 +352,8 @@ class BacksolveFunction(torch.autograd.Function):
         t_start,
         t_end,
         t_eval,
+        dt0,
+        backward_dt0,
         args,
         *adjoint_params,
     ):
@@ -361,10 +363,12 @@ class BacksolveFunction(torch.autograd.Function):
 
         problem = InitialValueProblem(y0, t_start, t_end, t_eval)
         with torch.no_grad():
-            solution = solver.solve(problem, dt0=None, args=args, term=term)
+            solution = solver.solve(problem, dt0=dt0, args=args, term=term)
 
         ctx.stats = solution.stats
-        ctx.save_for_backward(t_start, t_end, t_eval, solution.ys, *adjoint_params)
+        ctx.save_for_backward(
+            t_start, t_end, t_eval, backward_dt0, solution.ys, *adjoint_params
+        )
 
         return solution.ts, solution.ys, solution.stats, solution.status
 
@@ -373,7 +377,7 @@ class BacksolveFunction(torch.autograd.Function):
         aug_solver = ctx.aug_solver
         aug_term = ctx.aug_term
         args = ctx.args
-        t_start, t_end, t_eval, ys, *adjoint_params = ctx.saved_tensors
+        t_start, t_end, t_eval, dt0, ys, *adjoint_params = ctx.saved_tensors
 
         stats = ctx.stats
         stats.setdefault("backsolve", [])
@@ -391,7 +395,7 @@ class BacksolveFunction(torch.autograd.Function):
                     aug_state, t_start=t_end, t_end=t_start, t_eval=None
                 )
                 solution = aug_solver.solve(
-                    problem, dt0=None, args=(shapes, args), term=aug_term
+                    problem, dt0=dt0, args=(shapes, args), term=aug_term
                 )
                 aug_state = solution.ys[:, -1]
 
@@ -405,7 +409,7 @@ class BacksolveFunction(torch.autograd.Function):
                         t_eval=None,
                     )
                     solution = aug_solver.solve(
-                        problem, dt0=None, args=(shapes, args), term=aug_term
+                        problem, dt0=dt0, args=(shapes, args), term=aug_term
                     )
                     aug_state = solution.ys[:, -1]
                     aug_state[:, 1 : 1 + n_features] = ys[:, i - 1]
@@ -419,7 +423,20 @@ class BacksolveFunction(torch.autograd.Function):
         # Accumulate gradients over samples
         grad_params = [p.sum(dim=0) for p in grad_params]
 
-        return None, None, None, None, grad_y0, None, None, None, None, *grad_params
+        return (
+            None,
+            None,
+            None,
+            None,
+            grad_y0,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            *grad_params,
+        )
 
 
 class AugmentedDynamicsTerm(nn.Module):
@@ -491,7 +508,10 @@ class BacksolveAdjoint(nn.Module):
         term: Optional[ODETerm] = None,
         dt0: Optional[TimeTensor] = None,
         args: Any = None,
+        backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
+        if backward_dt0 is None and dt0 is not None:
+            backward_dt0 = -dt0
         ts, ys, stats, status = BacksolveFunction.apply(
             self.forward_adjoint,
             self.backward_adjoint,
@@ -501,6 +521,8 @@ class BacksolveAdjoint(nn.Module):
             problem.t_start,
             problem.t_end,
             problem.t_eval,
+            dt0,
+            backward_dt0,
             args,
             *list(self.term.parameters()),
         )
@@ -601,6 +623,7 @@ class JointBacksolveAdjoint(nn.Module):
         term: Optional[ODETerm] = None,
         dt0: Optional[TimeTensor] = None,
         args: Any = None,
+        backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
         y0 = problem.y0.flatten()[None]
         t_start = problem.t_start[:1]
@@ -623,6 +646,8 @@ class JointBacksolveAdjoint(nn.Module):
         t_slope = all_slopes / all_slopes[0]
         t_intercept = problem.t_start - t_slope * problem.t_start[0]
 
+        if backward_dt0 is None and dt0 is not None:
+            backward_dt0 = -dt0
         _, ys, stats, status = BacksolveFunction.apply(
             self.forward_loop,
             self.backward_loop,
@@ -632,6 +657,8 @@ class JointBacksolveAdjoint(nn.Module):
             t_start,
             t_end,
             t_eval,
+            dt0,
+            backward_dt0,
             (problem.batch_size, t_intercept, t_slope, args),
             *list(self.term.parameters()),
         )

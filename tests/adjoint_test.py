@@ -378,6 +378,25 @@ class LinearDynamics(nn.Module):
         return y @ self.A
 
 
+@pytest.mark.parametrize(["dt0", "bw_dt0"], [(0.1, None), (0.2, -0.5)])
+def test_backsolve_adjoint_with_fixed_step_controller(dt0, bw_dt0):
+    y0 = torch.arange(6, dtype=torch.float).reshape((2, 3))
+    term = ODETerm(LinearDynamics(nn.Parameter(torch.arange(9).reshape((3, 3)) / 8)))
+    t_eval = torch.tensor([[0.0, 1.77, 3.0], [2.0, 3.5, 6.0]])
+    problem = InitialValueProblem(
+        y0, t_start=t_eval[:, 0], t_end=t_eval[:, -1], t_eval=t_eval
+    )
+    adjoint = BacksolveAdjoint(term, Dopri5(), FixedStepController())
+
+    dt0 = torch.full((2,), dt0) if dt0 is not None else None
+    bw_dt0 = torch.full((2,), bw_dt0) if bw_dt0 is not None else None
+
+    solution = adjoint.solve(problem, term=term, dt0=dt0, backward_dt0=bw_dt0)
+
+    # Test backward as well
+    solution.ys.mean().backward()
+
+
 @pytest.mark.parametrize("adjoint", ["autodiff", "backsolve", "joint-backsolve"])
 def test_gradients_with_t_eval(adjoint):
     def f(y0, params):
@@ -388,9 +407,7 @@ def test_gradients_with_t_eval(adjoint):
             t_eval = A.new_tensor([[0.0, 1.125, 3.0], [2.0, 3.5, 6.0]])
         else:
             t_eval = A.new_tensor([[0.0, 1.77, 3.0], [2.0, 3.5, 6.0]])
-        problem = InitialValueProblem(
-            y0, t_start=t_eval[:, 0], t_end=t_eval[:, -1], t_eval=t_eval
-        )
+        problem = InitialValueProblem(y0, t_eval=t_eval)
         step_method = Dopri5()
         step_size_controller = PIDController(1e-6, 0.0, 0.3, 0.6, 0.0)
         if adjoint == "autodiff":
@@ -469,11 +486,11 @@ def test_gradients_without_t_eval(adjoint):
         atol = 1e-5
     elif adjoint == "backsolve":
         # BacksolveAdjoint has no equivalent of backprop_through_step_size_control for
-        # now, so we accept a somewhat larger error in the gradient for now.
+        # now, so we accept a somewhat larger error in the gradient.
         atol = 1e-2
     elif adjoint == "joint-backsolve":
-        # BacksolveAdjoint has not equivalent of backprop_through_step_size_control for
-        # now, so we accept a somewhat larger error in the gradient for now.
-        atol = 1e-5
+        # JointBacksolveAdjoint has no equivalent of backprop_through_step_size_control
+        # for now, so we accept a somewhat larger error in the gradient.
+        atol = 1e-2
 
     assert torch.autograd.gradcheck(f, (y0, A), atol=atol)
