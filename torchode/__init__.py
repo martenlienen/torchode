@@ -1,6 +1,6 @@
 """A parallel ODE solver for PyTorch"""
 
-__version__ = "0.1.9"
+__version__ = "0.2.0"
 
 from .adjoints import AutoDiffAdjoint, BacksolveAdjoint, JointBacksolveAdjoint
 from .interface import register_method, solve_ivp
