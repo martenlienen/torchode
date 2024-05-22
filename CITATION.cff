@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: torchode
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Marten
+    family-names: Lienen
+    email: m.lienen@tum.de
+  - given-names: Stephan
+    family-names: Günnemann
+    email: s.guennemann@tum.de
+repository-code: "https://github.com/martenlienen/torchode"
+license: MIT
+preferred-citation:
+  type: conference-paper
+  title: "torchode: A Parallel ODE Solver for PyTorch"
+  authors:
+    - given-names: Marten
+      family-names: Lienen
+      email: m.lienen@tum.de
+    - given-names: Stephan
+      family-names: Günnemann
+      email: s.guennemann@tum.de
+  collection-title: "The Symbiosis of Deep Learning and Differential Equations II, NeurIPS"
+  year: 2022
+  url: "https://openreview.net/forum?id=uiKVKTiUYB0"
