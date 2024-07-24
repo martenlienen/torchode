@@ -39,7 +39,7 @@ def same_shape(*tensors: torch.Tensor, dim: Optional[int] = None):
 ################
 
 
-class DataTensor:
+class DataTensor(torch.Tensor):
     """
     Data tensor.
 
@@ -49,7 +49,7 @@ class DataTensor:
     pass
 
 
-class NormTensor:
+class NormTensor(torch.Tensor):
     """
     Norm tensor.
 
@@ -59,7 +59,7 @@ class NormTensor:
     pass
 
 
-class SolutionDataTensor:
+class SolutionDataTensor(torch.Tensor):
     """
     Solution data tensor.
 
@@ -69,7 +69,7 @@ class SolutionDataTensor:
     pass
 
 
-class TimeTensor:
+class TimeTensor(torch.Tensor):
     """
     Time tensor.
 
@@ -79,7 +79,7 @@ class TimeTensor:
     pass
 
 
-class EvaluationTimesTensor:
+class EvaluationTimesTensor(torch.Tensor):
     """
     Evaluation times tensor.
 
@@ -89,7 +89,7 @@ class EvaluationTimesTensor:
     pass
 
 
-class AcceptTensor:
+class AcceptTensor(torch.Tensor):
     """
     Accept tensor.
 
@@ -99,7 +99,7 @@ class AcceptTensor:
     pass
 
 
-class StatusTensor:
+class StatusTensor(torch.Tensor):
     """
     Status tensor.
 
@@ -109,7 +109,7 @@ class StatusTensor:
     pass
 
 
-class InterpTimeTensor:
+class InterpTimeTensor(torch.Tensor):
     """
     Interpolation time tensor.
 
@@ -119,7 +119,7 @@ class InterpTimeTensor:
     pass
 
 
-class InterpDataTensor:
+class InterpDataTensor(torch.Tensor):
     """
     Interpolation data tensor.
 
@@ -129,7 +129,7 @@ class InterpDataTensor:
     pass
 
 
-class SampleIndexTensor:
+class SampleIndexTensor(torch.Tensor):
     """
     Sample index tensor.
 

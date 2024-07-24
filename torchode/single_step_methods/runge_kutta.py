@@ -11,7 +11,7 @@ from ..typing import *
 from .base import StepResult
 
 
-class CoefficientVector:
+class CoefficientVector(torch.Tensor):
     """
     Coefficient vector.
 
@@ -21,7 +21,7 @@ class CoefficientVector:
     pass
 
 
-class RungeKuttaMatrix:
+class RungeKuttaMatrix(torch.Tensor):
     """
     Runge-Kutta matrix.
 
@@ -31,7 +31,7 @@ class RungeKuttaMatrix:
     pass
 
 
-class WeightVector:
+class WeightVector(torch.Tensor):
     """
     Weight vector.
 
@@ -41,7 +41,7 @@ class WeightVector:
     pass
 
 
-class WeightMatrix:
+class WeightMatrix(torch.Tensor):
     """
     Weight matrix.
 
