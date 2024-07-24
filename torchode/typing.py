@@ -1,7 +1,6 @@
 from typing import Optional
 
 import torch
-from torchtyping import TensorType, is_float
 
 
 def same_dtype(*tensors: torch.Tensor):
@@ -39,49 +38,102 @@ def same_shape(*tensors: torch.Tensor, dim: Optional[int] = None):
 # Tensor Types #
 ################
 
-# These are subclasses of TensorType instead of using TensorType annotations directly,
-# because TorchScript does not support custom type constructors. In this way, we can
-# continue to document the shapes and types of tensors while being TorchScript
-# compatible, see [1].
-#
-# [1] https://github.com/patrick-kidger/torchtyping/issues/13
 
+class DataTensor:
+    """
+    Data tensor.
 
-class DataTensor(TensorType["batch", "feature", is_float]):
+    TensorType["batch", "feature", is_float]
+    """
+
     pass
 
 
-class NormTensor(TensorType["batch", is_float]):
+class NormTensor:
+    """
+    Norm tensor.
+
+    TensorType["batch", is_float]
+    """
+
     pass
 
 
-class SolutionDataTensor(TensorType["batch", "time", "feature", is_float]):
+class SolutionDataTensor:
+    """
+    Solution data tensor.
+
+    TensorType["batch", "time", "feature", is_float]
+    """
+
     pass
 
 
-class TimeTensor(TensorType["batch", is_float]):
+class TimeTensor:
+    """
+    Time tensor.
+
+    TensorType["batch", is_float]
+    """
+
     pass
 
 
-class EvaluationTimesTensor(TensorType["batch", "time", is_float]):
+class EvaluationTimesTensor:
+    """
+    Evaluation times tensor.
+
+    TensorType["batch", "time", is_float]
+    """
+
     pass
 
 
-class AcceptTensor(TensorType["batch", torch.bool]):
+class AcceptTensor:
+    """
+    Accept tensor.
+
+    TensorType["batch", torch.bool]
+    """
+
     pass
 
 
-class StatusTensor(TensorType["batch", torch.long]):
+class StatusTensor:
+    """
+    Status tensor.
+
+    TensorType["batch", torch.long]
+    """
+
     pass
 
 
-class InterpTimeTensor(TensorType["interp-points", is_float]):
+class InterpTimeTensor:
+    """
+    Interpolation time tensor.
+
+    TensorType["interp-points", is_float]
+    """
+
     pass
 
 
-class InterpDataTensor(TensorType["interp-points", "feature", is_float]):
+class InterpDataTensor:
+    """
+    Interpolation data tensor.
+
+    TensorType["interp-points", "feature", is_float]
+    """
+
     pass
 
 
-class SampleIndexTensor(TensorType["interp-points", torch.long]):
+class SampleIndexTensor:
+    """
+    Sample index tensor.
+
+    TensorType["interp-points", torch.long]
+    """
+
     pass

@@ -2,7 +2,6 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import torch
 import torch.nn as nn
-from torchtyping import TensorType
 
 from ..interpolation import LocalInterpolation
 from ..problems import InitialValueProblem
@@ -12,19 +11,43 @@ from ..typing import *
 from .base import StepResult
 
 
-class CoefficientVector(TensorType["nodes"]):
+class CoefficientVector:
+    """
+    Coefficient vector.
+
+    TensorType["nodes"]
+    """
+
     pass
 
 
-class RungeKuttaMatrix(TensorType["nodes", "weights"]):
+class RungeKuttaMatrix:
+    """
+    Runge-Kutta matrix.
+
+    TensorType["nodes", "weights"]
+    """
+
     pass
 
 
-class WeightVector(TensorType["weights"]):
+class WeightVector:
+    """
+    Weight vector.
+
+    TensorType["weights"]
+    """
+
     pass
 
 
-class WeightMatrix(TensorType["rows", "weights"]):
+class WeightMatrix:
+    """
+    Weight matrix.
+
+    TensorType["rows", "weights"]
+    """
+
     pass
 
 

@@ -20,7 +20,6 @@ classifiers = [
 dependencies = [
   "sympy ~= 1.10",
   "torch >= 2.0",
-  "torchtyping ~= 0.1.4",
 ]
 
 [project.optional-dependencies]
