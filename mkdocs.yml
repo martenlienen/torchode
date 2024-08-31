@@ -12,6 +12,7 @@ plugins:
 nav:
   - "Introduction": README.md
   - step-size-controllers.md
+  - backprop.md
   - jit.ipynb
   - extra-args.md
   - extra-stats.ipynb
