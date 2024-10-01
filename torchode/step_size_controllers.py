@@ -478,7 +478,7 @@ class IntegralController(nn.Module):
             args,
         )
 
-        d2 = norm((f1 - f0) * inv_scale) / dt0
+        d2 = torch.where(dt0 == 0, torch.inf, norm((f1 - f0) * inv_scale) / dt0)
 
         maxd1d2 = torch.maximum(d1, d2)
         dt1 = torch.where(
