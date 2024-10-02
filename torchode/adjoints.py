@@ -220,17 +220,16 @@ class AutoDiffAdjoint(nn.Module):
                     )
                     >= 0.0
                 ) & not_yet_evaluated
-                if to_be_evaluated.any():
-                    interpolation = step_method.build_interpolation(interp_data)
-                    nonzero = to_be_evaluated.nonzero()
-                    sample_idx, eval_t_idx = nonzero[:, 0], nonzero[:, 1]
-                    y_eval[sample_idx, eval_t_idx] = interpolation.evaluate(
-                        t_eval[sample_idx, eval_t_idx], sample_idx
-                    )
+                interpolation = step_method.build_interpolation(interp_data)
+                nonzero = to_be_evaluated.nonzero()
+                sample_idx, eval_t_idx = nonzero[:, 0], nonzero[:, 1]
+                y_eval[sample_idx, eval_t_idx] = interpolation.evaluate(
+                    t_eval[sample_idx, eval_t_idx], sample_idx
+                )
 
-                    not_yet_evaluated = torch.logical_xor(
-                        to_be_evaluated, not_yet_evaluated
-                    )
+                not_yet_evaluated = torch.logical_xor(
+                    to_be_evaluated, not_yet_evaluated
+                )
 
             ########################
             # Update the step size #
