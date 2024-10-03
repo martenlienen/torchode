@@ -207,10 +207,11 @@ class AutoDiffAdjoint(nn.Module):
             # Evaluate the solution at all evaluation points that have been passed in
             # this step.
             #
-            # We always build the interpolation and evaluate it, even if no evaluation
-            # points have actually been passed, because this avoids a CPU-GPU
-            # synchronization and for time series models we expect that most steps will
-            # pass at least one evaluation point across the whole batch (usually more).
+            # This causes a blocking CPU-GPU sync point at to_be_evaluated.any 
+            # when t_eval is not None, but deferring this sync doesn't seem to 
+            # yield a speedup. A sync is necessary at each evaluation point anyway
+            # since nonzero produces a variable-shape result.
+            # See https://github.com/martenlienen/torchode/issues/46
             if t_eval is not None:
                 to_be_evaluated = (
                     torch.addcmul(
