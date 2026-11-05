@@ -419,6 +419,26 @@ class BacksolveFunction(torch.autograd.Function):
 
                     stats["backsolve"].append(solution.stats)
 
+                # Evaluation points need not include the initial time. Propagate
+                # the first observation's cotangent through the remaining interval.
+                needs_initial_solve = t_eval[:, 0] != t_start
+                if needs_initial_solve.any():
+                    problem = InitialValueProblem(
+                        aug_state,
+                        t_start=t_eval[:, 0],
+                        t_end=t_start,
+                        t_eval=None,
+                    )
+                    solution = aug_solver.solve(
+                        problem, dt0=dt0, args=(shapes, args), term=aug_term
+                    )
+                    # Keep aligned members unchanged; their zero-length dense
+                    # interpolation need not produce a usable value.
+                    aug_state = torch.where(
+                        needs_initial_solve[:, None], solution.ys[:, -1], aug_state
+                    )
+                    stats["backsolve"].append(solution.stats)
+
         _, _, grad_y0, *grad_params = unflatten_tensors(shapes, aug_state)
         # Accumulate gradients over samples
         grad_params = [p.sum(dim=0) for p in grad_params]

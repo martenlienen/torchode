@@ -494,3 +494,44 @@ def test_gradients_without_t_eval(adjoint):
         atol = 1e-2
 
     assert torch.autograd.gradcheck(f, (y0, A), atol=atol)
+
+
+@pytest.mark.parametrize(
+    ["adjoint", "n_eval"],
+    [(BacksolveAdjoint, 1), (BacksolveAdjoint, 2), (JointBacksolveAdjoint, 2)],
+)
+@pytest.mark.parametrize("direction", [1.0, -1.0])
+def test_backsolve_gradients_before_first_evaluation(adjoint, n_eval, direction):
+    y0 = torch.tensor(
+        [[1.0], [2.0], [3.0], [4.0]], dtype=torch.double, requires_grad=True
+    )
+    A = nn.Parameter(torch.tensor([[0.3]], dtype=torch.double))
+    term = ODETerm(LinearDynamics(A))
+    if adjoint is JointBacksolveAdjoint:
+        t_start = y0.new_zeros(4)
+        signs = y0.new_full((4,), direction)
+        fractions = y0.new_tensor([[0.3, 0.8]]).expand(4, -1)
+    else:
+        t_start = y0.new_tensor([0.0, 0.0, 2.0, 2.0])
+        signs = direction * y0.new_tensor([1.0, 1.0, -1.0, -1.0])
+        # Aligned and interior observations share the same solve. The aligned
+        # members must not acquire NaNs from a zero-length backward segment.
+        fractions = y0.new_tensor([[0.0, 0.8], [0.3, 0.8]]).repeat(2, 1)
+    t_eval = t_start[:, None] + signs[:, None] * fractions[:, :n_eval]
+    problem = InitialValueProblem(y0, t_start, t_start + signs, t_eval)
+    solver = adjoint(term, Dopri5(), IntegralController(1e-10, 1e-10))
+    solution = solver.solve(problem)
+    weights = y0.new_tensor([0.7, -0.2])[:n_eval]
+    grad_y0, grad_A = torch.autograd.grad(
+        (solution.ys[:, :, 0] * weights).sum(), (y0, A)
+    )
+
+    elapsed = t_eval - t_start[:, None]
+    factor = torch.exp(A.detach() * elapsed)
+    expected_values = y0.detach()[:, None, :] * factor[:, :, None]
+    expected_grad_y0 = (weights * factor).sum(dim=1, keepdim=True)
+    expected_grad_A = (weights * y0.detach() * elapsed * factor).sum().reshape(1, 1)
+    assert (solution.status == Status.SUCCESS.value).all()
+    torch.testing.assert_close(solution.ys, expected_values, atol=1e-7, rtol=1e-7)
+    torch.testing.assert_close(grad_y0, expected_grad_y0, atol=1e-7, rtol=1e-7)
+    torch.testing.assert_close(grad_A, expected_grad_A, atol=1e-7, rtol=1e-7)
