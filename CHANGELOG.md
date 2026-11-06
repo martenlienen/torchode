@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A failing solve no longer stops the whole batch. Previously, the other solves were cut short but still reported `Status.SUCCESS` with uninitialized evaluations. Now every solve continues until it finishes or fails itself.
 - Solves, that were erroneously reported as failed because they finished on the last possible step or experienced errors after they were already done, now correctly finish with `Status.SUCCESS`
 - Zero-length intervals (`t_start == t_end`) now ignore errors from step methods and controllers as they are not involved in the "solve"
+- `PIDController` no longer returns NaN for zero-length intervals when `t_eval` is not set.
 
 ## 1.0.0 - 2024-09-22
 

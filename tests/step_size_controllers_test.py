@@ -65,6 +65,27 @@ def test_zero_error_produces_finite_step_size(controller):
 @pytest.mark.parametrize(
     "controller",
     [
+        PIDController(atol=1e-5, rtol=1e-5, pcoeff=0.2, icoeff=0.5, dcoeff=0.0),
+        IntegralController(atol=1e-5, rtol=1e-5),
+    ],
+)
+def test_zero_length_interval_gets_zero_initial_step(controller):
+    t_start = torch.tensor([0.0, 1.0])
+    t_end = torch.tensor([1.0, 1.0])
+    y0 = torch.tensor([[1.0], [2.0]])
+    term = ODETerm(lambda t, y: -y)
+    problem = InitialValueProblem(y0, t_start, t_end)
+    stats = {}
+    term.init(problem, stats)
+    dt0, _, _ = controller.init(term, problem, 5, None, stats=stats, args=None)
+
+    assert dt0[0] > 0.0
+    assert dt0[1] == 0.0
+
+
+@pytest.mark.parametrize(
+    "controller",
+    [
         # Use RMS norm because rms_norm(max_float32) is inf
         PIDController(atol=1, rtol=1, pcoeff=1, icoeff=1, dcoeff=1, norm=rms_norm),
         IntegralController(atol=1.0, rtol=0.0, norm=rms_norm),
