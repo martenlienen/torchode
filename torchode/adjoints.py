@@ -88,7 +88,10 @@ class AutoDiffAdjoint(nn.Module):
             minus_t_eval_normalized = -time_direction[:, None] * t_eval
 
         # Keep track of which solves are still running
-        running = y.new_ones(batch_size, dtype=torch.bool)
+        running = t_start != t_end
+        status = torch.full(
+            (batch_size,), status_codes.SUCCESS, dtype=torch.long, device=device
+        )
 
         # Initialize additional statistics to track for the integration term
         term_ = term
@@ -116,14 +119,14 @@ class AutoDiffAdjoint(nn.Module):
         # Take care of evaluation exactly at t_start #
         ##############################################
 
-        # We copy the initial state into the evaluation if the first evaluation point
-        # happens to be exactly `t_start`. This is required so that we can later assume
-        # that rejection of the step (and therefore also no change in `t`) means that we
-        # also did not pass any evaluation points.
+        # We copy the initial state into all evaluation points that are exactly
+        # `t_start`. This is required so that we can later assume that rejection
+        # of the step (and therefore also no change in `t`) means that we also
+        # did not pass any evaluation points.
         if t_eval is not None:
-            eval_at_start = t_eval[:, 0] == t_start
-            y_eval[eval_at_start, 0] = y[eval_at_start]
-            not_yet_evaluated[eval_at_start, 0] = False
+            eval_at_start = t_eval == t_start[:, None]
+            y_eval = torch.where(eval_at_start[..., None], y[:, None], y_eval)
+            not_yet_evaluated = not_yet_evaluated & ~eval_at_start
 
         ####################################
         # Solve the initial value problems #
@@ -165,30 +168,38 @@ class AutoDiffAdjoint(nn.Module):
             # Update solver state and status #
             ##################################
 
-            # Stop a solve if `t` has passed its endpoint in the direction of time
-            running = torch.addcmul(minus_t_end_normalized, time_direction, t) < 0.0
+            # A solve is unfinished while `t` has not passed its endpoint in the
+            # direction of time
+            unfinished = running & (
+                torch.addcmul(minus_t_end_normalized, time_direction, t) < 0.0
+            )
 
-            status = method_status
-            if status is None:
-                status = controller_status
-            elif controller_status is not None:
-                status = torch.maximum(status, controller_status)
+            if method_status is not None:
+                # If the step method failed, the solve failed
+                status = torch.where(running, method_status, status)
+            if controller_status is not None:
+                # If the controller failed, but the solve has finished, we
+                # ignore the error, because it would only affect the next dt
+                status = torch.where(
+                    unfinished & (status == status_codes.SUCCESS),
+                    controller_status,
+                    status,
+                )
             if max_steps is not None:
                 status = torch.where(
-                    stats_n_steps >= max_steps,
+                    unfinished
+                    & (status == status_codes.SUCCESS)
+                    & (stats_n_steps >= max_steps),
                     status_codes.REACHED_MAX_STEPS,
-                    status if status is not None else status_codes.SUCCESS,
+                    status,
                 )
+            # Successful solves that are not finished yet keep running
+            running = unfinished & (status == status_codes.SUCCESS)
 
             # We evaluate the termination condition here already and initiate a
             # non-blocking transfer to the CPU to increase the chance that we won't have
             # to wait for the result when we actually check the termination condition
-            continue_iterating = torch.any(running)
-            if status is not None:
-                continue_iterating = continue_iterating & torch.all(
-                    status == status_codes.SUCCESS
-                )
-            continue_iterating = continue_iterating.to("cpu", non_blocking=True)
+            continue_iterating = torch.any(running).to("cpu", non_blocking=True)
 
             # There is a bug as of pytorch 1.12.1 where non-blocking transfer from
             # device to host can sometimes gives the wrong result, so we place this
@@ -207,8 +218,8 @@ class AutoDiffAdjoint(nn.Module):
             # Evaluate the solution at all evaluation points that have been passed in
             # this step.
             #
-            # This causes a blocking CPU-GPU sync point at to_be_evaluated.any 
-            # when t_eval is not None, but deferring this sync doesn't seem to 
+            # This causes a blocking CPU-GPU sync point at to_be_evaluated.any
+            # when t_eval is not None, but deferring this sync doesn't seem to
             # yield a speedup. A sync is necessary at each evaluation point anyway
             # since nonzero produces a variable-shape result.
             # See https://github.com/martenlienen/torchode/issues/46
@@ -262,12 +273,6 @@ class AutoDiffAdjoint(nn.Module):
             ##################################################
             # Finalize the solver and construct the solution #
             ##################################################
-
-            # Ensure that the user always gets a status tensor
-            if status is None:
-                status = torch.tensor(
-                    status_codes.SUCCESS, dtype=torch.long, device=device
-                ).expand(batch_size)
 
             # Put the step statistics into the stats dict in the end, so that
             # we don't have to type-assert all the time in torchscript

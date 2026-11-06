@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Both adjoint backward pass implementations now produce the correct gradients if `t_eval` is explicitly set but does not include `t_start`. The bug was that the adjoint backward passes would only propagate the gradients back to the first evaluation point and thus discount the effect between `t_start` and `t_eval[:, 0]`.
+- A failing solve no longer stops the whole batch. Previously, the other solves were cut short but still reported `Status.SUCCESS` with uninitialized evaluations. Now every solve continues until it finishes or fails itself.
+- Solves, that were erroneously reported as failed because they finished on the last possible step or experienced errors after they were already done, now correctly finish with `Status.SUCCESS`
+- Zero-length intervals (`t_start == t_end`) now ignore errors from step methods and controllers as they are not involved in the "solve"
+
 ## 1.0.0 - 2024-09-22
 
 After almost a year without any bugs found, we mark this as the first stable release!

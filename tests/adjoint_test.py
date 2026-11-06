@@ -1,13 +1,11 @@
+from itertools import chain, repeat
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-from problems import create_ivp, get_problem
 from pytest import approx
-from stubs import StubStepMethod, StubStepSizeController
-
 from torchode import (
     AutoDiffAdjoint,
     BacksolveAdjoint,
@@ -21,6 +19,9 @@ from torchode import (
     PIDController,
     Status,
 )
+
+from problems import create_ivp, get_problem
+from stubs import StubStepMethod, StubStepSizeController
 
 
 def test_evaluates_solution_at_evaluation_points():
@@ -118,6 +119,18 @@ def test_no_t_eval_evaluates_at_t_end():
     )
 
 
+def test_finishing_on_the_last_allowed_step_is_success():
+    y0 = torch.zeros((1, 1))
+    y = lambda t, *args: y0
+    problem = InitialValueProblem(y0, t_eval=torch.tensor([[0.0, 4.0]]))
+    step_method = StubStepMethod(y, Status.SUCCESS.value)
+    adjoint = AutoDiffAdjoint(step_method, FixedStepController(), max_steps=4)
+    solution = adjoint.solve(problem, dt0=torch.ones(1))
+
+    assert solution.status.tolist() == [Status.SUCCESS.value]
+    assert solution.stats["n_steps"].tolist() == [4]
+
+
 def test_terminates_after_max_steps():
     y0 = torch.zeros((2, 1))
     t_eval = torch.tensor([[1.0, 4.9], [2.0, 13.0]])
@@ -212,17 +225,17 @@ def test_rejection_of_initial_step_does_not_skip_evaluation_at_t_start():
     assert (solution.ys == y0[:, None]).all()
 
 
-def test_stops_on_non_successful_step_method():
+def test_failed_step_method_only_stops_its_own_solve():
     y, _, problem = get_problem("sine", [[0.0, 2.0], [2.0, 4.0]])
+    # The failed instance reports success afterwards, but its failure must stick
     step_method = StubStepMethod(
         y,
         Mock(
-            side_effect=[
-                Status.SUCCESS.value,
-                Status.SUCCESS.value,
-                Status.SUCCESS.value,
-                [Status.SUCCESS.value, Status.GENERAL_ERROR.value],
-            ]
+            side_effect=chain(
+                [Status.SUCCESS.value] * 3,
+                [[Status.SUCCESS.value, Status.GENERAL_ERROR.value]],
+                repeat(Status.SUCCESS.value),
+            )
         ),
     )
     step_size_controller = StubStepSizeController(0.2, 0.2, True, Status.SUCCESS.value)
@@ -234,9 +247,10 @@ def test_stops_on_non_successful_step_method():
         Status.SUCCESS.value,
         Status.GENERAL_ERROR.value,
     ]
-    assert solution.stats["n_steps"].tolist() == [4, 4]
-    assert solution.stats["n_accepted"].tolist() == [4, 4]
-    assert solution.stats["n_initialized"].tolist() == [1, 1]
+    assert solution.stats["n_steps"].tolist() == [10, 4]
+    assert solution.stats["n_accepted"].tolist() == [10, 4]
+    assert solution.stats["n_initialized"].tolist() == [2, 1]
+    assert solution.ys[0].numpy() == approx(y(problem.t_eval[0]).numpy())
 
 
 def test_finished_solves_do_not_update_dt():
@@ -292,7 +306,7 @@ def test_solution_is_only_evaluated_inside_of_integration_range():
     assert solution.ts.tolist() == problem.t_eval.tolist()
 
 
-def test_stops_on_non_successful_adapt_step_size():
+def test_failed_adapt_step_size_only_stops_its_own_solve():
     y, _, problem = get_problem("sine", [[0.0, 2.0], [2.0, 4.0]])
     step_method = StubStepMethod(y, Status.SUCCESS.value)
     step_size_controller = StubStepSizeController(
@@ -300,10 +314,11 @@ def test_stops_on_non_successful_adapt_step_size():
         0.2,
         True,
         Mock(
-            side_effect=[
-                *([Status.SUCCESS.value] * 5),
-                [Status.GENERAL_ERROR.value, Status.SUCCESS.value],
-            ]
+            side_effect=chain(
+                [Status.SUCCESS.value] * 5,
+                [[Status.GENERAL_ERROR.value, Status.SUCCESS.value]],
+                repeat(Status.SUCCESS.value),
+            )
         ),
     )
 
@@ -314,9 +329,50 @@ def test_stops_on_non_successful_adapt_step_size():
         Status.GENERAL_ERROR.value,
         Status.SUCCESS.value,
     ]
-    assert solution.stats["n_steps"].tolist() == [6, 6]
-    assert solution.stats["n_accepted"].tolist() == [6, 6]
-    assert solution.stats["n_initialized"].tolist() == [1, 1]
+    assert solution.stats["n_steps"].tolist() == [6, 10]
+    assert solution.stats["n_accepted"].tolist() == [6, 10]
+    assert solution.stats["n_initialized"].tolist() == [1, 2]
+    assert solution.ys[1].numpy() == approx(y(problem.t_eval[1]).numpy())
+
+
+def test_zero_length_intervals_are_solved_without_steps():
+    # The components report errors for the zero-length instance, but should be ignored
+    y, _, _ = get_problem("sine", [[1.0]])
+    y0 = torch.full((2, 1), 42.0)
+    _, problem = create_ivp(None, y0, [[1.0, 1.5, 2.0], [1.0, 1.0, 1.0]])
+    error = [Status.SUCCESS.value, Status.GENERAL_ERROR.value]
+    step_method = StubStepMethod(y, error)
+    step_size_controller = StubStepSizeController(0.25, 0.25, True, error)
+
+    solution = AutoDiffAdjoint(step_method, step_size_controller).solve(problem)
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    assert solution.stats["n_steps"].tolist() == [4, 0]
+    assert solution.stats["n_initialized"].tolist() == [3, 3]
+    assert (solution.ys[1] == y0[1]).all()
+
+
+def test_finished_solves_keep_their_termination_status_while_idling():
+    y, _, problem = get_problem("sine", [[0.0, 1.0], [0.0, 2.0]])
+
+    # The first instance finishes after 4 steps, then idles and receives errors,
+    # which must be ignored
+    def idle_errors():
+        return Mock(
+            side_effect=chain(
+                [Status.SUCCESS.value] * 4,
+                repeat([Status.GENERAL_ERROR.value, Status.SUCCESS.value]),
+            )
+        )
+
+    step_method = StubStepMethod(y, idle_errors())
+    step_size_controller = StubStepSizeController(0.25, 0.25, True, idle_errors())
+
+    solution = AutoDiffAdjoint(step_method, step_size_controller).solve(problem)
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    assert solution.stats["n_steps"].tolist() == [4, 8]
+    assert solution.stats["n_initialized"].tolist() == [2, 2]
 
 
 def test_inverting_time_inverts_dynamics():
