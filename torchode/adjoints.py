@@ -474,20 +474,21 @@ class AugmentedDynamicsTerm(nn.Module):
         self.vmap_args_dims = vmap_args_dims
         self.vmap_randomness = vmap_randomness
 
-        f = self.term.f
-        orig_params = dict(f.named_parameters())
-        buffers = dict(f.named_buffers())
-        params_names = orig_params.keys()
-
         def vjp_single_sample(t_i, y_i, adj_y_i, arg_i):
-            def wrapper(params, t_, y_):
+            # Look up parameters and buffers on every call, because they can be
+            # reassigned or converted after construction, e.g. by `.to()`
+            f = self.term.f
+            params = dict(f.named_parameters())
+            buffers = dict(f.named_buffers())
+
+            def wrapper(params_values, t_, y_):
                 args = (t_, y_)
                 if self.term.with_args:
                     args = args + (arg_i,)
-                params_dict = {name: value for name, value in zip(params_names, params)}
+                params_dict = dict(zip(params.keys(), params_values))
                 return torch.func.functional_call(f, (params_dict, buffers), args)
 
-            dy, vjp = torch.func.vjp(wrapper, tuple(orig_params.values()), t_i, y_i)
+            dy, vjp = torch.func.vjp(wrapper, tuple(params.values()), t_i, y_i)
             vjp_params, vjp_t, vjp_y = vjp(-adj_y_i)
             return dy, vjp_t, vjp_y, vjp_params
 
