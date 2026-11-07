@@ -668,3 +668,27 @@ def test_backsolve_rejects_args_that_require_gradients(adjoint):
 
     with pytest.raises(NotImplementedError, match="args"):
         solver.solve(problem, args=args)
+
+
+@pytest.mark.parametrize(
+    "adjoint", [AutoDiffAdjoint, BacksolveAdjoint, JointBacksolveAdjoint]
+)
+@pytest.mark.parametrize("with_t_eval", [False, True])
+def test_solution_has_outputs_for_every_instance(adjoint, with_t_eval):
+    term = ODETerm(LinearDynamics(nn.Parameter(torch.tensor([[-0.5]]))))
+    if adjoint is AutoDiffAdjoint:
+        solver = AutoDiffAdjoint(Dopri5(), IntegralController(1e-6, 1e-6))
+    else:
+        solver = adjoint(term, Dopri5(), IntegralController(1e-6, 1e-6))
+    # Share the times across instances, because JointBacksolveAdjoint requires it
+    t_eval = torch.tensor([[0.0, 0.5, 1.0]]).expand(3, -1) if with_t_eval else None
+    y0 = torch.ones((3, 1))
+    problem = InitialValueProblem(y0, torch.zeros(3), torch.ones(3), t_eval)
+    solution = solver.solve(problem, term=term)
+
+    n_eval = 3 if with_t_eval else 1
+    assert solution.ts.shape == (3, n_eval)
+    assert solution.ys.shape == (3, n_eval, 1)
+    assert solution.status.shape == (3,)
+    for key in ["n_f_evals", "n_steps", "n_accepted", "n_initialized"]:
+        assert solution.stats[key].shape == (3,)

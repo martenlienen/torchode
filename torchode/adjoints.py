@@ -720,11 +720,15 @@ class JointBacksolveAdjoint(nn.Module):
             *list(self.term.parameters()),
         )
 
-        ys = ys[0].unflatten(dim=1, sizes=(problem.batch_size, -1)).transpose(1, 0)
-        if problem.t_eval is None:
-            ts = problem.t_end
-        else:
-            ts = problem.t_eval
+        batch_size = problem.batch_size
+        ys = ys[0].unflatten(dim=1, sizes=(batch_size, -1)).transpose(1, 0)
+        ts = problem.t_end[:, None] if problem.t_eval is None else problem.t_eval
+
+        # Broadcast status and stats from the joint solve to all instances
+        status = status.expand(batch_size)
+        for key, value in stats.items():
+            if isinstance(value, torch.Tensor):
+                stats[key] = value.expand(batch_size, *value.shape[1:])
         return Solution(ts, ys, stats, status)
 
     def __repr__(self):
