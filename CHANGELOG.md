@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backsolve adjoints no longer compute gradients for frozen parameters in the backward pass (nor do they fail as was the case for `JointBacksolveAdjoint`)
 - The backward pass of `BacksolveAdjoint` now passes the dynamics a batch dimension like the forward pass, so dynamics that index the batch dimension, e.g. `t[:, None]`, no longer crash.
 - `BacksolveAdjoint` and `JointBacksolveAdjoint` now use the `term` passed to `solve`, if any, instead of silently ignoring it in favor of the one passed at construction.
+- `solve_ivp` now accepts `method="euler"`.
 
 ## 1.0.0 - 2024-09-22
 

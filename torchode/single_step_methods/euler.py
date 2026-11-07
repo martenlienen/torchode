@@ -21,7 +21,7 @@ class LinearInterpolationData(NamedTuple):
 
 
 class Euler(nn.Module):
-    def __init__(self, term: Optional[ODETerm]):
+    def __init__(self, term: Optional[ODETerm] = None):
         super().__init__()
 
         self.term = term
