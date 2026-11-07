@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The backward passes of `BacksolveAdjoint` and `JointBacksolveAdjoint` now also preserve the dtypes of `t` and `y`.
 - `IntegralController` and `PIDController` now also apply `dt_min` and `dt_max` to the initial step.
 - `JointBacksolveAdjoint` now returns the same shape for `status`, `ts` and `stats` as the other adjoints.
+- Backsolve adjoints no longer compute gradients for frozen parameters in the backward pass (nor do they fail as was the case for `JointBacksolveAdjoint`)
 
 ## 1.0.0 - 2024-09-22
 

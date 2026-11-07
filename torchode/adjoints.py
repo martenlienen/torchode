@@ -523,17 +523,26 @@ class AugmentedDynamicsTerm(nn.Module):
             # reassigned or converted after construction, e.g. by `.to()`
             f = self.term.f
             params = dict(f.named_parameters())
-            buffers = dict(f.named_buffers())
+            trainable = {k: p for k, p in params.items() if p.requires_grad}
+            # Pass frozen parameters with buffers to avoid computing their
+            # gradients
+            constants = {k: p for k, p in params.items() if not p.requires_grad}
+            constants.update(f.named_buffers())
 
-            def wrapper(params_values, y_):
+            def wrapper(trainable_values, y_):
                 args = (t_i, y_)
                 if self.term.with_args:
                     args = args + (arg_i,)
-                params_dict = dict(zip(params.keys(), params_values))
-                return torch.func.functional_call(f, (params_dict, buffers), args)
+                trainable_dict = dict(zip(trainable.keys(), trainable_values))
+                return torch.func.functional_call(f, (trainable_dict, constants), args)
 
-            dy, vjp = torch.func.vjp(wrapper, tuple(params.values()), y_i)
-            vjp_params, vjp_y = vjp(-adj_y_i)
+            dy, vjp = torch.func.vjp(wrapper, tuple(trainable.values()), y_i)
+            vjp_trainable, vjp_y = vjp(-adj_y_i)
+            vjp_trainable = dict(zip(trainable.keys(), vjp_trainable))
+            vjp_params = [
+                vjp_trainable[k] if k in vjp_trainable else torch.zeros_like(p)
+                for k, p in params.items()
+            ]
             return dy, vjp_y, vjp_params
 
         self.vjp_vf = torch.func.vmap(
@@ -635,7 +644,6 @@ class JointAugmentedDynamicsTerm(nn.Module):
         super().__init__()
 
         self.term = term
-        self.parameters = list(self.term.parameters())
 
     def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
         return self.term.init(problem, stats)
@@ -647,12 +655,16 @@ class JointAugmentedDynamicsTerm(nn.Module):
 
         y, adj_y, *_ = unflatten_tensors(shapes, y)
 
+        # Look up parameters and buffers on every call, because they can be
+        # reassigned or converted after construction, e.g. by `.to()`
+        params = list(self.term.parameters())
+        trainable = [p for p in params if p.requires_grad]
         with torch.enable_grad():
             y_ = y.detach().requires_grad_()
             dy = self.term.vf(t, y_, stats, term_args)
-            vjp_y, *vjp_params = torch.autograd.grad(
+            vjp_y, *vjp_trainable = torch.autograd.grad(
                 dy,
-                [y_] + self.parameters,
+                [y_] + trainable,
                 -adj_y,
                 allow_unused=True,
                 retain_graph=True,
@@ -660,10 +672,11 @@ class JointAugmentedDynamicsTerm(nn.Module):
 
         if vjp_y is None:
             vjp_y = torch.zeros_like(y)
-        vjp_params = [
-            vp if vp is not None else torch.zeros_like(p)
-            for p, vp in zip(self.parameters, vjp_params)
-        ]
+        vjp_trainable = iter(vjp_trainable)
+        vjp_params = []
+        for p in params:
+            vp = next(vjp_trainable) if p.requires_grad else None
+            vjp_params.append(torch.zeros_like(p) if vp is None else vp)
 
         dy_joint = dy.flatten()[None]
         vjp_params_joint = [p[None] for p in vjp_params]

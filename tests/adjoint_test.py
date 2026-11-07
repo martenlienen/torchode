@@ -692,3 +692,41 @@ def test_solution_has_outputs_for_every_instance(adjoint, with_t_eval):
     assert solution.status.shape == (3,)
     for key in ["n_f_evals", "n_steps", "n_accepted", "n_initialized"]:
         assert solution.stats[key].shape == (3,)
+
+
+class AffineDynamics(nn.Module):
+    def __init__(self, A, b):
+        super().__init__()
+
+        self.A = A
+        self.b = b
+
+    def forward(self, t, y):
+        return y @ self.A + self.b
+
+
+@pytest.mark.parametrize("adjoint", [BacksolveAdjoint, JointBacksolveAdjoint])
+@pytest.mark.parametrize("A_frozen", [False, True])
+@pytest.mark.parametrize("b_frozen", [False, True])
+def test_backsolve_gradients_with_frozen_parameters(adjoint, A_frozen, b_frozen):
+    # A is registered before b, so skipping a frozen A must not shift b's gradient
+    A = nn.Parameter(
+        torch.tensor([[-0.5]], dtype=torch.double), requires_grad=not A_frozen
+    )
+    b = nn.Parameter(
+        torch.tensor([0.3], dtype=torch.double), requires_grad=not b_frozen
+    )
+    solver = adjoint(
+        ODETerm(AffineDynamics(A, b)), Dopri5(), IntegralController(1e-10, 1e-10)
+    )
+    y0 = torch.tensor([[1.0], [2.0]], dtype=torch.double, requires_grad=True)
+    problem = InitialValueProblem(y0, y0.new_zeros(2), y0.new_ones(2))
+    solution = solver.solve(problem)
+    inputs = [y0] + [p for p in (A, b) if p.requires_grad]
+    grads = torch.autograd.grad(solution.ys.sum(), inputs)
+
+    # Differentiate the exact solution y(1) = (y0 + b / a) * exp(a) - b / a
+    a = A[0, 0]
+    expected = torch.autograd.grad(((y0 + b / a) * a.exp() - b / a).sum(), inputs)
+    for grad, expected_grad in zip(grads, expected):
+        torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
