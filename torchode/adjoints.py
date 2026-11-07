@@ -578,18 +578,10 @@ class UnwrappingODETerm(nn.Module):
         self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
     ) -> DataTensor:
         """Evaluate the vector field."""
-        batch_size, t_intercept, t_slope, term_args = args
+        batch_size, term_args = args
 
-        # Map from the integration interval of the first instance onto the other
-        # integration intervals
-        t = torch.addcmul(t_intercept, t_slope, t)
-
+        t = t.expand(batch_size)
         dy = self.term.vf(t, y[0].reshape((batch_size, -1)), stats, term_args)
-
-        # Correct the y-derivative for the distortion through the linear mapping
-        # according to the substitution rule
-        dy = dy * t_slope[:, None]
-
         return dy.flatten()[None]
 
 
@@ -653,26 +645,20 @@ class JointBacksolveAdjoint(nn.Module):
         args: Any = None,
         backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
+        times = [problem.t_start[:, None], problem.t_end[:, None]]
+        if problem.t_eval is not None:
+            times.append(problem.t_eval)
+        times = torch.cat(times, dim=1)
+        if not (times == times[:1]).all():
+            raise ValueError(
+                "JointBacksolveAdjoint requires all instances in the batch to share "
+                "t_start, t_end and t_eval. Use BacksolveAdjoint otherwise."
+            )
+
         y0 = problem.y0.flatten()[None]
         t_start = problem.t_start[:1]
         t_end = problem.t_end[:1]
-        t_eval = problem.t_eval
-        if t_eval is not None:
-            eval_steps = torch.diff(t_eval, dim=1)
-            normalized_steps = eval_steps / torch.maximum(
-                eval_steps[:, :1], t_eval.new_tensor(1e-8)
-            )
-            assert (normalized_steps - normalized_steps[0]).abs().max() < 1e-8, (
-                "JointBacksolveAdjoint can only be applied if all instances in "
-                "the batch are evaluated at the same points in time"
-            )
-            t_eval = t_eval[:1]
-
-        # Compute linear maps from the integration interval (and evaluation points) of
-        # any instance onto the integration interval of the first instance in the batch
-        all_slopes = problem.t_end - problem.t_start
-        t_slope = all_slopes / all_slopes[0]
-        t_intercept = problem.t_start - t_slope * problem.t_start[0]
+        t_eval = None if problem.t_eval is None else problem.t_eval[:1]
 
         if backward_dt0 is None and dt0 is not None:
             backward_dt0 = -dt0
@@ -687,7 +673,7 @@ class JointBacksolveAdjoint(nn.Module):
             t_eval,
             dt0,
             backward_dt0,
-            (problem.batch_size, t_intercept, t_slope, args),
+            (problem.batch_size, args),
             *list(self.term.parameters()),
         )
 

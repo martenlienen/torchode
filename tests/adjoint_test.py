@@ -458,9 +458,8 @@ def test_gradients_with_t_eval(adjoint):
     def f(y0, params):
         term = ODETerm(LinearDynamics(params))
         if adjoint == "joint-backsolve":
-            # JointBacksolveAdjoint is only applicable if the evaluation points are
-            # "aligned"
-            t_eval = A.new_tensor([[0.0, 1.125, 3.0], [2.0, 3.5, 6.0]])
+            # JointBacksolveAdjoint requires all instances to share their times
+            t_eval = A.new_tensor([[0.0, 1.77, 3.0], [0.0, 1.77, 3.0]])
         else:
             t_eval = A.new_tensor([[0.0, 1.77, 3.0], [2.0, 3.5, 6.0]])
         problem = InitialValueProblem(y0, t_eval=t_eval)
@@ -500,8 +499,13 @@ def test_gradients_with_t_eval(adjoint):
 def test_gradients_without_t_eval(adjoint):
     def f(y0, params):
         term = ODETerm(LinearDynamics(params))
-        t_start = A.new_tensor([0.0, 2.0])
-        t_end = A.new_tensor([3.0, 6.0])
+        if adjoint == "joint-backsolve":
+            # JointBacksolveAdjoint requires all instances to share their times
+            t_start = A.new_tensor([0.0, 0.0])
+            t_end = A.new_tensor([3.0, 3.0])
+        else:
+            t_start = A.new_tensor([0.0, 2.0])
+            t_end = A.new_tensor([3.0, 6.0])
         problem = InitialValueProblem(y0, t_start=t_start, t_end=t_end, t_eval=None)
         step_method = Dopri5()
         step_size_controller = PIDController(1e-6, 0.0, 0.3, 0.6, 0.0)

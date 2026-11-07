@@ -21,4 +21,4 @@ discretized. This breaks with torchode's approach of solving each ODE completely
 independently, because the joint discretization introduces a subtle coupling between the
 solutions of your batch of ODEs. Therefore, `to.JointBacksolveAdjoint` should be your
 backpropagation choice of last resort. Furthermore, it is only applicable if all ODEs in
-your batch have the same evaluation points.
+your batch share the same `t_start`, `t_end` and evaluation points.
