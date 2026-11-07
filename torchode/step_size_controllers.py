@@ -464,8 +464,11 @@ class IntegralController(nn.Module):
         d0 = norm(y0 * inv_scale)
         d1 = norm(f0 * inv_scale)
 
+        # Protect divisions with double-where to avoid NaN gradients
         small_number = torch.tensor(1e-6, dtype=d0.dtype, device=d0.device)
-        dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
+        tiny_norms = (d0 < 1e-5) | (d1 < 1e-5)
+        safe_d1 = torch.where(tiny_norms, 1.0, d1)
+        dt0 = torch.where(tiny_norms, small_number, 0.01 * d0 / safe_d1)
 
         # Ensure that we don't step out of the integration bounds
         dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
@@ -478,13 +481,18 @@ class IntegralController(nn.Module):
             args,
         )
 
-        d2 = torch.where(dt0 == 0, torch.inf, norm((f1 - f0) * inv_scale) / dt0)
+        # The step is 0 for zero-length intervals regardless of d2
+        zero_dt0 = dt0 == 0
+        safe_dt0 = torch.where(zero_dt0, 1.0, dt0)
+        d2 = torch.where(zero_dt0, 0.0, norm((f1 - f0) * inv_scale) / safe_dt0)
 
         maxd1d2 = torch.maximum(d1, d2)
+        tiny_maxd1d2 = maxd1d2 <= 1e-15
+        safe_maxd1d2 = torch.where(tiny_maxd1d2, 1.0, maxd1d2)
         dt1 = torch.where(
-            maxd1d2 <= 1e-15,
+            tiny_maxd1d2,
             torch.maximum(small_number, dt0 * 1e-3),
-            (0.01 / maxd1d2) ** (1.0 / convergence_order),
+            (0.01 / safe_maxd1d2) ** (1.0 / convergence_order),
         )
 
         return (direction * torch.minimum(100 * dt0, dt1)).to(dtype=t0.dtype), f0
@@ -809,8 +817,11 @@ class PIDController(nn.Module):
         d0 = norm(y0 * inv_scale)
         d1 = norm(f0 * inv_scale)
 
+        # Protect divisions with double-where to avoid NaN gradients
         small_number = torch.tensor(1e-6, dtype=d0.dtype, device=d0.device)
-        dt0 = torch.where((d0 < 1e-5) | (d1 < 1e-5), small_number, 0.01 * d0 / d1)
+        tiny_norms = (d0 < 1e-5) | (d1 < 1e-5)
+        safe_d1 = torch.where(tiny_norms, 1.0, d1)
+        dt0 = torch.where(tiny_norms, small_number, 0.01 * d0 / safe_d1)
 
         # Ensure that we don't step out of the integration bounds
         dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
@@ -823,13 +834,18 @@ class PIDController(nn.Module):
             args,
         )
 
-        d2 = torch.where(dt0 == 0, torch.inf, norm((f1 - f0) * inv_scale) / dt0)
+        # The step is 0 for zero-length intervals regardless of d2
+        zero_dt0 = dt0 == 0
+        safe_dt0 = torch.where(zero_dt0, 1.0, dt0)
+        d2 = torch.where(zero_dt0, 0.0, norm((f1 - f0) * inv_scale) / safe_dt0)
 
         maxd1d2 = torch.maximum(d1, d2)
+        tiny_maxd1d2 = maxd1d2 <= 1e-15
+        safe_maxd1d2 = torch.where(tiny_maxd1d2, 1.0, maxd1d2)
         dt1 = torch.where(
-            maxd1d2 <= 1e-15,
+            tiny_maxd1d2,
             torch.maximum(small_number, dt0 * 1e-3),
-            (0.01 / maxd1d2) ** (1.0 / convergence_order),
+            (0.01 / safe_maxd1d2) ** (1.0 / convergence_order),
         )
 
         return (direction * torch.minimum(100 * dt0, dt1)).to(dtype=t0.dtype), f0

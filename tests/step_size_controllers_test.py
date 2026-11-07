@@ -83,6 +83,32 @@ def test_zero_length_interval_gets_zero_initial_step(controller):
     assert dt0[1] == 0.0
 
 
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize(
+    "controller",
+    [
+        PIDController(atol=1e-5, rtol=1e-5, pcoeff=0.2, icoeff=0.5, dcoeff=0.1),
+        IntegralController(atol=1e-5, rtol=1e-5),
+    ],
+)
+def test_initial_step_has_finite_gradients(controller, dtype):
+    # A regular instance, one with zero state and one with a zero-length interval
+    t_start = torch.tensor([0.0, 0.0, 1.0], dtype=dtype)
+    t_end = torch.tensor([1.0, 1.0, 1.0], dtype=dtype)
+    y0 = torch.tensor([[1.0, 2.0], [0.0, 0.0], [1.0, 2.0]], dtype=dtype)
+    y0.requires_grad_()
+    A = torch.tensor([[-0.5, 0.1], [0.2, -0.3]], dtype=dtype, requires_grad=True)
+    term = ODETerm(lambda t, y: y @ A)
+    problem = InitialValueProblem(y0, t_start, t_end)
+    stats = {}
+    term.init(problem, stats)
+    dt0, _, _ = controller.init(term, problem, 5, None, stats=stats, args=None)
+    dt0.sum().backward()
+
+    assert torch.isfinite(y0.grad).all()
+    assert torch.isfinite(A.grad).all()
+
+
 @pytest.mark.parametrize(
     "controller",
     [
