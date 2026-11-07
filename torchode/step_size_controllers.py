@@ -365,6 +365,8 @@ class IntegralController(nn.Module):
             dt_max = torch.tensor(
                 dt_max, dtype=problem.time_dtype, device=problem.device
             )
+        if dt_min is not None or dt_max is not None:
+            dt0 = torch.sign(dt0) * torch.clamp(dt0.abs(), dt_min, dt_max)
         return dt0, self.initial_state(method_order, problem, dt_min, dt_max), f0
 
     @torch.jit.export
@@ -718,6 +720,8 @@ class PIDController(nn.Module):
             dt_max = torch.tensor(
                 dt_max, dtype=problem.time_dtype, device=problem.device
             )
+        if dt_min is not None or dt_max is not None:
+            dt0 = torch.sign(dt0) * torch.clamp(dt0.abs(), dt_min, dt_max)
         return dt0, self.initial_state(method_order, problem, dt_min, dt_max), f0
 
     @torch.jit.export

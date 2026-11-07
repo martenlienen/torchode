@@ -83,6 +83,41 @@ def test_zero_length_interval_gets_zero_initial_step(controller):
     assert dt0[1] == 0.0
 
 
+@pytest.mark.parametrize("make_controller", [PIDController, IntegralController])
+@pytest.mark.parametrize(
+    ["dt0", "dt_min", "dt_max", "expected"],
+    [
+        # Without limits, the selected initial step is about 0.0457
+        (None, None, None, 0.0457),
+        (None, 0.1, None, 0.1),
+        (None, None, 0.01, 0.01),
+        (1.0, None, 0.01, 0.01),
+    ],
+)
+def test_initial_step_respects_step_size_limits(
+    make_controller, dt0, dt_min, dt_max, expected
+):
+    if make_controller is PIDController:
+        controller = PIDController(
+            1e-5, 1e-5, 0.2, 0.5, 0.0, dt_min=dt_min, dt_max=dt_max
+        )
+    else:
+        controller = IntegralController(1e-5, 1e-5, dt_min=dt_min, dt_max=dt_max)
+    t_start = torch.tensor([0.0, 0.0])
+    t_end = torch.tensor([10.0, -10.0])
+    y0 = torch.tensor([[1.0], [1.0]])
+    term = ODETerm(lambda t, y: -y)
+    problem = InitialValueProblem(y0, t_start, t_end)
+    stats = {}
+    term.init(problem, stats)
+    if dt0 is not None:
+        dt0 = problem.time_direction * dt0
+    dt0, _, _ = controller.init(term, problem, 5, dt0, stats=stats, args=None)
+
+    torch.testing.assert_close(
+        dt0, torch.tensor([expected, -expected]), atol=0.0, rtol=1e-3
+    )
+
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 @pytest.mark.parametrize(
     "controller",
