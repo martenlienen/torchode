@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BacksolveAdjoint` now computes gradients with the current parameters and buffers of the dynamics. Previously, it used the ones captured at construction, so reassigning a buffer or converting the module with, e.g., `.double()` or `.cuda()` gave wrong gradients.
 - `JointBacksolveAdjoint` now raises an error if the instances in a batch do not share `t_start`, `t_end` and `t_eval`, as the documentation requires.
 - `BacksolveAdjoint` and `JointBacksolveAdjoint` now compute gradients with respect to `t_start`, `t_end` and `t_eval`. They raise an error if a tensor in `args` requires gradients.
+- The backward passes of `BacksolveAdjoint` and `JointBacksolveAdjoint` now also preserve the dtypes of `t` and `y`.
 
 ## 1.0.0 - 2024-09-22
 

@@ -400,9 +400,12 @@ class BacksolveFunction(torch.autograd.Function):
         stats = ctx.stats
         stats.setdefault("backsolve", [])
 
+        ##########################
+        # y and params gradients #
+        ##########################
+
         batch_size, n_eval, n_features = ys.shape
         shapes, aug_state = flatten_tensors(
-            ys.new_zeros((batch_size, 1)),
             ys[:, -1],
             grad_ys[:, -1],
             *[torch.zeros_like(p).expand(batch_size, *p.shape) for p in adjoint_params],
@@ -430,10 +433,8 @@ class BacksolveFunction(torch.autograd.Function):
                         problem, dt0=dt0, args=(shapes, args), term=aug_term
                     )
                     aug_state = solution.ys[:, -1]
-                    aug_state[:, 1 : 1 + n_features] = ys[:, i - 1]
-                    aug_state[:, 1 + n_features : 1 + 2 * n_features] += grad_ys[
-                        :, i - 1
-                    ]
+                    aug_state[:, :n_features] = ys[:, i - 1]
+                    aug_state[:, n_features : 2 * n_features] += grad_ys[:, i - 1]
 
                     stats["backsolve"].append(solution.stats)
 
@@ -457,9 +458,13 @@ class BacksolveFunction(torch.autograd.Function):
                     )
                     stats["backsolve"].append(solution.stats)
 
-        _, _, grad_y0, *grad_params = unflatten_tensors(shapes, aug_state)
+        _, grad_y0, *grad_params = unflatten_tensors(shapes, aug_state)
         # Accumulate gradients over samples
         grad_params = [p.sum(dim=0) for p in grad_params]
+
+        ##################
+        # Time gradients #
+        ##################
 
         grad_t_start, grad_t_end, grad_t_eval = None, None, None
         if any(ctx.needs_input_grad[5:8]):
@@ -520,16 +525,16 @@ class AugmentedDynamicsTerm(nn.Module):
             params = dict(f.named_parameters())
             buffers = dict(f.named_buffers())
 
-            def wrapper(params_values, t_, y_):
-                args = (t_, y_)
+            def wrapper(params_values, y_):
+                args = (t_i, y_)
                 if self.term.with_args:
                     args = args + (arg_i,)
                 params_dict = dict(zip(params.keys(), params_values))
                 return torch.func.functional_call(f, (params_dict, buffers), args)
 
-            dy, vjp = torch.func.vjp(wrapper, tuple(params.values()), t_i, y_i)
-            vjp_params, vjp_t, vjp_y = vjp(-adj_y_i)
-            return dy, vjp_t, vjp_y, vjp_params
+            dy, vjp = torch.func.vjp(wrapper, tuple(params.values()), y_i)
+            vjp_params, vjp_y = vjp(-adj_y_i)
+            return dy, vjp_y, vjp_params
 
         self.vjp_vf = torch.func.vmap(
             vjp_single_sample,
@@ -545,10 +550,10 @@ class AugmentedDynamicsTerm(nn.Module):
     ) -> DataTensor:
         shapes, args = args
 
-        adj_t, y, adj_y, *_ = unflatten_tensors(shapes, y)
-        dy, vjp_t, vjp_y, vjp_params = self.vjp_vf(t, y, adj_y, args)
+        y, adj_y, *_ = unflatten_tensors(shapes, y)
+        dy, vjp_y, vjp_params = self.vjp_vf(t, y, adj_y, args)
 
-        return flatten_tensors(vjp_t[:, None], dy, vjp_y, *vjp_params)[1]
+        return flatten_tensors(dy, vjp_y, *vjp_params)[1]
 
 
 class BacksolveAdjoint(nn.Module):
@@ -640,22 +645,19 @@ class JointAugmentedDynamicsTerm(nn.Module):
     ) -> DataTensor:
         shapes, term_args = args
 
-        adj_t, y, adj_y, *_ = unflatten_tensors(shapes, y)
+        y, adj_y, *_ = unflatten_tensors(shapes, y)
 
         with torch.enable_grad():
-            t_ = t.detach().requires_grad_()
             y_ = y.detach().requires_grad_()
-            dy = self.term.vf(t_, y_, stats, term_args)
-            vjp_t, vjp_y, *vjp_params = torch.autograd.grad(
+            dy = self.term.vf(t, y_, stats, term_args)
+            vjp_y, *vjp_params = torch.autograd.grad(
                 dy,
-                [t_, y_] + self.parameters,
+                [y_] + self.parameters,
                 -adj_y,
                 allow_unused=True,
                 retain_graph=True,
             )
 
-        if vjp_t is None:
-            vjp_t = torch.zeros_like(t)
         if vjp_y is None:
             vjp_y = torch.zeros_like(y)
         vjp_params = [
@@ -665,7 +667,7 @@ class JointAugmentedDynamicsTerm(nn.Module):
 
         dy_joint = dy.flatten()[None]
         vjp_params_joint = [p[None] for p in vjp_params]
-        return flatten_tensors(vjp_t[:, None], dy_joint, vjp_y, *vjp_params_joint)[1]
+        return flatten_tensors(dy_joint, vjp_y, *vjp_params_joint)[1]
 
 
 class JointBacksolveAdjoint(nn.Module):
