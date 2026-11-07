@@ -595,3 +595,76 @@ def test_backsolve_gradients_before_first_evaluation(adjoint, n_eval, direction)
     torch.testing.assert_close(solution.ys, expected_values, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_y0, expected_grad_y0, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_A, expected_grad_A, atol=1e-7, rtol=1e-7)
+
+
+@pytest.mark.parametrize("adjoint", [BacksolveAdjoint, JointBacksolveAdjoint])
+@pytest.mark.parametrize("times", ["t_eval", "t_eval_after_t_start", "t_end"])
+def test_backsolve_gradients_with_respect_to_times(adjoint, times):
+    A = nn.Parameter(torch.tensor([[0.5]], dtype=torch.double))
+    solver = adjoint(
+        ODETerm(LinearDynamics(A)), Dopri5(), IntegralController(1e-10, 1e-10)
+    )
+    # JointBacksolveAdjoint requires shared times, so expand them from a single
+    # row
+    n_rows = 1 if adjoint is JointBacksolveAdjoint else 2
+    t_start_leaf = torch.tensor(
+        [-0.2, -1.0][:n_rows], dtype=torch.double, requires_grad=True
+    )
+    t_eval_leaf = torch.tensor(
+        [[0.3, 0.8, 1.5], [-0.5, 0.0, 2.0]][:n_rows],
+        dtype=torch.double,
+        requires_grad=True,
+    )
+    t_end_leaf = torch.tensor(
+        [2.0, 2.5][:n_rows], dtype=torch.double, requires_grad=True
+    )
+    t_start, t_end = t_start_leaf.expand(2), t_end_leaf.expand(2)
+    t_eval = t_eval_leaf.expand(2, -1)
+    y0 = torch.tensor([[1.0], [2.0]], dtype=torch.double)
+    # Test various combinations of time settings
+    if times == "t_eval":
+        problem = InitialValueProblem(y0, t_eval=t_eval)
+    elif times == "t_eval_after_t_start":
+        problem = InitialValueProblem(y0, t_start, t_end, t_eval)
+    else:
+        problem = InitialValueProblem(y0, t_start, t_end)
+
+    # Use ts in the loss to check that gradients on `solution.ts` are passed
+    # through correctly
+    def loss(ts, ys):
+        weights = y0.new_tensor([0.7, -0.2, 0.4])[: ys.shape[1]]
+        return (ys[..., 0] * weights).sum() + 0.3 * ts.sum()
+
+    solution = solver.solve(problem)
+    grads = torch.autograd.grad(
+        loss(solution.ts, solution.ys),
+        (t_start_leaf, t_end_leaf, t_eval_leaf),
+        materialize_grads=True,
+    )
+
+    # Differentiate the same loss through the exact solution y0 * exp(A * elapsed)
+    eval_times = problem.t_end[:, None] if problem.t_eval is None else problem.t_eval
+    elapsed = eval_times - problem.t_start[:, None]
+    exact_ys = y0[:, None] * torch.exp(A.detach() * elapsed[..., None])
+    expected = torch.autograd.grad(
+        loss(eval_times, exact_ys),
+        (t_start_leaf, t_end_leaf, t_eval_leaf),
+        materialize_grads=True,
+    )
+    for grad, expected_grad in zip(grads, expected):
+        torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
+
+
+@pytest.mark.parametrize("adjoint", [BacksolveAdjoint, JointBacksolveAdjoint])
+def test_backsolve_rejects_args_that_require_gradients(adjoint):
+    A = nn.Parameter(torch.tensor([[0.5]]))
+    solver = adjoint(
+        ODETerm(LinearDynamics(A), with_args=True),
+        Dopri5(),
+        IntegralController(1e-6, 1e-6),
+    )
+    problem = InitialValueProblem(torch.ones((2, 1)), torch.zeros(2), torch.ones(2))
+    args = {"scale": torch.ones(2, requires_grad=True)}
+
+    with pytest.raises(NotImplementedError, match="args"):
+        solver.solve(problem, args=args)

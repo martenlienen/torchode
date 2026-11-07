@@ -28,4 +28,4 @@ pp.plot(sol.ts[1], sol.ys[1])
 pp.show()
 ```
 
-Note that torchode is completely oblivious to the contents of your `args` object. So you can pass tensors, tuples, custom classes or anything else to your dynamics. However, you have to take care of correct broadcasting yourself as in the example above.
+Note that torchode is completely oblivious to the contents of your `args` object. So you can pass tensors, tuples, custom classes or anything else to your dynamics. However, you have to take care of correct broadcasting yourself as in the example above. If you need gradients with respect to tensors in `args`, use `to.AutoDiffAdjoint`. The backsolve adjoints do not support them and raise an error.

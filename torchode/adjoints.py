@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
+from torch.utils._pytree import tree_leaves
 
 from . import status_codes
 from .problems import InitialValueProblem
@@ -345,6 +346,17 @@ def unflatten_tensors(shapes, tensors):
     ]
 
 
+def ensure_args_do_not_require_grad(args):
+    if torch.is_grad_enabled() and any(
+        isinstance(leaf, torch.Tensor) and leaf.requires_grad
+        for leaf in tree_leaves(args)
+    ):
+        raise NotImplementedError(
+            "Backsolve adjoints cannot compute gradients with respect to tensors in "
+            "args. Detach them or use AutoDiffAdjoint."
+        )
+
+
 class BacksolveFunction(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -362,6 +374,7 @@ class BacksolveFunction(torch.autograd.Function):
         args,
         *adjoint_params,
     ):
+        ctx.term = term
         ctx.aug_solver = aug_solver
         ctx.aug_term = aug_term
         ctx.args = args
@@ -372,7 +385,7 @@ class BacksolveFunction(torch.autograd.Function):
 
         ctx.stats = solution.stats
         ctx.save_for_backward(
-            t_start, t_end, t_eval, backward_dt0, solution.ys, *adjoint_params
+            y0, t_start, t_end, t_eval, backward_dt0, solution.ys, *adjoint_params
         )
 
         return solution.ts, solution.ys, solution.stats, solution.status
@@ -382,7 +395,7 @@ class BacksolveFunction(torch.autograd.Function):
         aug_solver = ctx.aug_solver
         aug_term = ctx.aug_term
         args = ctx.args
-        t_start, t_end, t_eval, dt0, ys, *adjoint_params = ctx.saved_tensors
+        y0, t_start, t_end, t_eval, dt0, ys, *adjoint_params = ctx.saved_tensors
 
         stats = ctx.stats
         stats.setdefault("backsolve", [])
@@ -448,15 +461,41 @@ class BacksolveFunction(torch.autograd.Function):
         # Accumulate gradients over samples
         grad_params = [p.sum(dim=0) for p in grad_params]
 
+        grad_t_start, grad_t_end, grad_t_eval = None, None, None
+        if any(ctx.needs_input_grad[5:8]):
+            term = ctx.term
+            vf_stats: Dict[str, Any] = {}
+            term.init(InitialValueProblem(y0, t_start, t_end, t_eval), vf_stats)
+
+            def project_vf(t, y, cotangent):
+                dy = term.vf(t, y, vf_stats, args)
+                return (cotangent * dy).sum(dim=-1).to(dtype=t.dtype)
+
+            # Moving an evaluation point moves the solution along f, and moving
+            # t_start acts like perturbing y0 by -f(t_start, y0)
+            grad_t_start = -project_vf(t_start, y0, grad_y0)
+            eval_times = t_end[:, None] if t_eval is None else t_eval
+            grad_eval_times = grad_ts + torch.stack(
+                [
+                    project_vf(eval_times[:, i], ys[:, i], grad_ys[:, i])
+                    for i in range(n_eval)
+                ],
+                dim=1,
+            )
+            if t_eval is None:
+                grad_t_end = grad_eval_times[:, 0]
+            else:
+                grad_t_eval = grad_eval_times
+
         return (
             None,
             None,
             None,
             None,
             grad_y0,
-            None,
-            None,
-            None,
+            grad_t_start,
+            grad_t_end,
+            grad_t_eval,
             None,
             None,
             None,
@@ -538,6 +577,7 @@ class BacksolveAdjoint(nn.Module):
         args: Any = None,
         backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
+        ensure_args_do_not_require_grad(args)
         if backward_dt0 is None and dt0 is not None:
             backward_dt0 = -dt0
         ts, ys, stats, status = BacksolveFunction.apply(
@@ -645,6 +685,7 @@ class JointBacksolveAdjoint(nn.Module):
         args: Any = None,
         backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
+        ensure_args_do_not_require_grad(args)
         times = [problem.t_start[:, None], problem.t_end[:, None]]
         if problem.t_eval is not None:
             times.append(problem.t_eval)
