@@ -609,13 +609,21 @@ class BacksolveAdjoint(nn.Module):
         backward_dt0: Optional[TimeTensor] = None,
     ) -> Solution:
         ensure_args_do_not_require_grad(args)
+        if term is None or term is self.term:
+            term, augmented_term = self.term, self.augmented_term
+        else:
+            augmented_term = AugmentedDynamicsTerm(
+                term,
+                vmap_args_dims=self.augmented_term.vmap_args_dims,
+                vmap_randomness=self.augmented_term.vmap_randomness,
+            )
         if backward_dt0 is None and dt0 is not None:
             backward_dt0 = -dt0
         ts, ys, stats, status = BacksolveFunction.apply(
             self.forward_adjoint,
             self.backward_adjoint,
-            self.term,
-            self.augmented_term,
+            term,
+            augmented_term,
             problem.y0,
             problem.t_start,
             problem.t_end,
@@ -623,7 +631,7 @@ class BacksolveAdjoint(nn.Module):
             dt0,
             backward_dt0,
             args,
-            *list(self.term.parameters()),
+            *list(term.parameters()),
         )
         return Solution(ts, ys, stats, status)
 
@@ -728,6 +736,12 @@ class JointBacksolveAdjoint(nn.Module):
                 "t_start, t_end and t_eval. Use BacksolveAdjoint otherwise."
             )
 
+        if term is None or term is self.term.term:
+            term, augmented_term = self.term, self.augmented_term
+        else:
+            term = UnwrappingODETerm(term)
+            augmented_term = JointAugmentedDynamicsTerm(term)
+
         y0 = problem.y0.flatten()[None]
         t_start = problem.t_start[:1]
         t_end = problem.t_end[:1]
@@ -738,8 +752,8 @@ class JointBacksolveAdjoint(nn.Module):
         _, ys, stats, status = BacksolveFunction.apply(
             self.forward_loop,
             self.backward_loop,
-            self.term,
-            self.augmented_term,
+            term,
+            augmented_term,
             y0,
             t_start,
             t_end,
@@ -747,7 +761,7 @@ class JointBacksolveAdjoint(nn.Module):
             dt0,
             backward_dt0,
             (problem.batch_size, args),
-            *list(self.term.parameters()),
+            *list(term.parameters()),
         )
 
         batch_size = problem.batch_size
