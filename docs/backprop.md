@@ -12,7 +12,11 @@ If you run out of memory, you can compute gradients by solving the so called adj
 equations, which basically solve the ODE backwards and track gradients along the way. This
 is implemented in `to.BacksolveAdjoint`. Solving the adjoint equations requires the
 computation of gradients of the model at different steps in time, which
-`to.BacksolveAdjoint` implements with `torch.func`. If your model is not compatible and
+`to.BacksolveAdjoint` implements with `torch.func`. It evaluates your model for each
+instance separately with `torch.func.vmap`, passing a batch of size one, so your model
+must not depend on the batch size or mix information between instances. If your extra
+`args` hold per-instance tensors, pass `vmap_args_dims` to tell `to.BacksolveAdjoint`
+which of their dimensions is the batch dimension. If your model is not compatible and
 you get errors because of this, you can fall back to `to.JointBacksolveAdjoint`. This
 computes the model gradients with pytorch's usual autograd and should always work but
 comes with two caveats. However, to make this work, `to.JointBacksolveAdjoint` needs to

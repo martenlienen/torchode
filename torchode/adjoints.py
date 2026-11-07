@@ -2,7 +2,12 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-from torch.utils._pytree import tree_leaves
+from torch.utils._pytree import (
+    _broadcast_to_and_flatten,
+    tree_flatten,
+    tree_leaves,
+    tree_unflatten,
+)
 
 from . import status_codes
 from .problems import InitialValueProblem
@@ -508,6 +513,15 @@ class BacksolveFunction(torch.autograd.Function):
         )
 
 
+def add_batch_dim(args, in_dims):
+    """Restore the dimensions that `vmap` with `in_dims` removed from `args`."""
+
+    leaves, spec = tree_flatten(args)
+    dims = _broadcast_to_and_flatten(in_dims, spec)
+    leaves = [x if d is None else x.unsqueeze(d) for x, d in zip(leaves, dims)]
+    return tree_unflatten(leaves, spec)
+
+
 class AugmentedDynamicsTerm(nn.Module):
     def __init__(
         self, term: ODETerm, vmap_args_dims=None, vmap_randomness: str = "error"
@@ -530,11 +544,14 @@ class AugmentedDynamicsTerm(nn.Module):
             constants.update(f.named_buffers())
 
             def wrapper(trainable_values, y_):
-                args = (t_i, y_)
+                # vmap removes the batch dimension, but f expects batched inputs
+                # as in the forward pass, so pass it a batch of one instance
+                f_args = (t_i[None], y_[None])
                 if self.term.with_args:
-                    args = args + (arg_i,)
+                    f_args = f_args + (add_batch_dim(arg_i, self.vmap_args_dims),)
                 trainable_dict = dict(zip(trainable.keys(), trainable_values))
-                return torch.func.functional_call(f, (trainable_dict, constants), args)
+                dy = torch.func.functional_call(f, (trainable_dict, constants), f_args)
+                return dy[0]
 
             dy, vjp = torch.func.vjp(wrapper, tuple(trainable.values()), y_i)
             vjp_trainable, vjp_y = vjp(-adj_y_i)

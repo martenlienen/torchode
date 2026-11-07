@@ -730,3 +730,39 @@ def test_backsolve_gradients_with_frozen_parameters(adjoint, A_frozen, b_frozen)
     expected = torch.autograd.grad(((y0 + b / a) * a.exp() - b / a).sum(), inputs)
     for grad, expected_grad in zip(grads, expected):
         torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
+
+
+class BatchIndexingDynamics(nn.Module):
+    def __init__(self, a):
+        super().__init__()
+
+        self.a = a
+
+    def forward(self, t, y, rate=None):
+        # Index the batch dimension of t and the per-instance args
+        dy = self.a * t[:, None] * y
+        return dy if rate is None else rate[:, None] * dy
+
+
+@pytest.mark.parametrize("with_args", [False, True])
+def test_backsolve_backward_passes_batched_inputs_to_dynamics(with_args):
+    a = nn.Parameter(torch.tensor(0.5, dtype=torch.double))
+    term = ODETerm(BatchIndexingDynamics(a), with_args=with_args)
+    solver = BacksolveAdjoint(
+        term,
+        Dopri5(),
+        IntegralController(1e-10, 1e-10),
+        vmap_args_dims=0 if with_args else None,
+    )
+    y0 = torch.tensor([[1.0], [2.0]], dtype=torch.double, requires_grad=True)
+    rate = y0.new_tensor([1.0, 3.0])
+    problem = InitialValueProblem(y0, y0.new_zeros(2), y0.new_ones(2))
+    solution = solver.solve(problem, args=rate if with_args else None)
+    grads = torch.autograd.grad(solution.ys.sum(), (y0, a))
+
+    # Differentiate the exact solution y(1) = y0 * exp(a * rate / 2)
+    rate = rate if with_args else torch.ones_like(rate)
+    exact = (y0 * torch.exp(a * rate[:, None] / 2)).sum()
+    expected = torch.autograd.grad(exact, (y0, a))
+    for grad, expected_grad in zip(grads, expected):
+        torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
