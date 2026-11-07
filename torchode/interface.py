@@ -63,6 +63,11 @@ def solve_ivp(
 
     if isinstance(f, ODETerm):
         term = f
+        if args is not None and not term.with_args:
+            raise ValueError(
+                "args were given, but the ODETerm would ignore them. Construct it "
+                "with with_args=True."
+            )
     else:
         if args is not None:
             term = ODETerm(f, with_args=True)

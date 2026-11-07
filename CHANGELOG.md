@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The backward pass of `BacksolveAdjoint` now passes the dynamics a batch dimension like the forward pass, so dynamics that index the batch dimension, e.g. `t[:, None]`, no longer crash.
 - `BacksolveAdjoint` and `JointBacksolveAdjoint` now use the `term` passed to `solve`, if any, instead of silently ignoring it in favor of the one passed at construction.
 - `solve_ivp` now accepts `method="euler"`.
+- `solve_ivp` now raises an error if `args` are given with an `ODETerm` that was not constructed with `with_args=True`.
 
 ## 1.0.0 - 2024-09-22
 
