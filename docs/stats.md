@@ -26,6 +26,8 @@ All solver components receive the `stats` dictionary and can record their own en
 
 `to.BacksolveAdjoint` and `to.JointBacksolveAdjoint` solve the adjoint equations backwards in time when you call `backward()`. Afterwards, `sol.stats["backsolve"]` holds a list with the statistics of each backward solve and the same keys as above. The backward pass solves one segment between each pair of consecutive evaluation points, starting from the last one, and one more from the first evaluation point back to `t_start` if they differ. Without `t_eval`, there is a single backward solve from `t_end` to `t_start`.
 
+In addition to the keys above, each entry in `sol.stats["backsolve"]` has a `"status"` key with one status code per instance. If a backward solve fails, the gradients of that instance with respect to `y0`, `t_start` and the parameters become NaN. Since the gradients of the parameters sum over all instances, they become NaN for the whole batch. The backward solves of the remaining segments then start from a NaN state and fail with `INFINITE_NORM`, so the first failed entry in the list shows the actual cause.
+
 The backward `n_f_evals` count the evaluations of the augmented dynamics, which evaluate your model and its vector-Jacobian product together. They do not include the evaluations for gradients with respect to `t_start`, `t_end` and `t_eval`.
 
 `to.JointBacksolveAdjoint` solves the whole batch as one joint system, so all instances share the same values in both the forward and the backward statistics.

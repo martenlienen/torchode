@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Solutions now are NaN for all `t_eval` or `t_end` that the solver did not reach before failing. This makes it easier to detect use of uninitialized results. Previously, evaluation points after a failure held uninitialized memory and the value at `t_end` without `t_eval` was extrapolated from the last step. Accordingly, `n_initialized` is now 0 for failed solves without `t_eval`.
+- Gradients of instances whose backsolve fails are now NaN and the `stats["backsolve"]` entries record the `status` of each backward solve.
 
 ### Fixed
 

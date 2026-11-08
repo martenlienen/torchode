@@ -703,8 +703,10 @@ def test_solution_has_outputs_for_every_instance(adjoint, with_t_eval):
     assert solution.ys.shape == (3, n_eval, 1)
     assert solution.status.shape == (3,)
     keys = ["n_f_evals", "n_steps", "n_accepted", "n_initialized"]
-    for stats in [solution.stats, *solution.stats.get("backsolve", [])]:
-        for key in keys:
+    for key in keys:
+        assert solution.stats[key].shape == (3,)
+    for stats in solution.stats.get("backsolve", []):
+        for key in keys + ["status"]:
             assert stats[key].shape == (3,)
 
 
@@ -817,3 +819,57 @@ def test_counts_function_evaluations(adjoint):
     if adjoint is not AutoDiffAdjoint:
         (backward_stats,) = solution.stats["backsolve"]
         assert backward_stats["n_f_evals"].tolist() == [n_backward_calls] * 2
+
+
+class StiffeningDynamics(nn.Module):
+    def __init__(self, A):
+        super().__init__()
+
+        self.A = A
+        self.stiff = False
+
+    def forward(self, t, y):
+        dy = y @ self.A
+        if self.stiff:
+            dy = torch.where(y < 0, 1e3 * dy, dy)
+        return dy
+
+
+@pytest.mark.parametrize("with_t_eval", [False, True])
+@pytest.mark.parametrize("adjoint", [BacksolveAdjoint, JointBacksolveAdjoint])
+def test_failed_backward_solves_give_nan_gradients(adjoint, with_t_eval):
+    dynamics = StiffeningDynamics(nn.Parameter(torch.tensor([[-0.5]])))
+    term = ODETerm(dynamics)
+    controller = IntegralController(1e-6, 1e-6, dt_min=1e-2)
+    solver = adjoint(term, Dopri5(), controller)
+    y0 = torch.tensor([[-1.0], [1.0]], requires_grad=True)
+    t_eval = None
+    if with_t_eval:
+        t_eval = torch.tensor([[0.0, 0.5, 1.0]]).expand(2, -1)
+    problem = InitialValueProblem(y0, torch.zeros(2), torch.ones(2), t_eval)
+    solution = solver.solve(problem)
+
+    # Only the first instance becomes too stiff for dt_min in the backward solve
+    dynamics.stiff = True
+    solution.ys.sum().backward()
+
+    # With t_eval, the backward solves of the earlier segments continue from
+    # the NaN state of the failed one
+    backward_stats, *later_stats = solution.stats["backsolve"]
+    assert len(later_stats) == (1 if with_t_eval else 0)
+    for stats in later_stats:
+        assert stats["status"][0] == Status.INFINITE_NORM.value
+    if adjoint is BacksolveAdjoint:
+        assert backward_stats["status"].tolist() == [
+            Status.REACHED_DT_MIN.value,
+            Status.SUCCESS.value,
+        ]
+        assert y0.grad[0].isnan().all()
+        assert y0.grad[1].isfinite().all()
+    else:
+        # The joint system fails as a whole
+        expected_status = [Status.REACHED_DT_MIN.value] * 2
+        assert backward_stats["status"].tolist() == expected_status
+        assert y0.grad.isnan().all()
+    # The parameter gradients sum over all instances
+    assert dynamics.A.grad.isnan().all()

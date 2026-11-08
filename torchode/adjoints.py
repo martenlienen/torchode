@@ -435,7 +435,7 @@ class BacksolveFunction(torch.autograd.Function):
                 )
                 aug_state = solution.ys[:, -1]
 
-                stats["backsolve"].append(solution.stats)
+                stats["backsolve"].append({"status": solution.status, **solution.stats})
             else:
                 for i in range(n_eval - 1, 0, -1):
                     problem = InitialValueProblem(
@@ -451,7 +451,9 @@ class BacksolveFunction(torch.autograd.Function):
                     aug_state[:, :n_features] = ys[:, i - 1]
                     aug_state[:, n_features : 2 * n_features] += grad_ys[:, i - 1]
 
-                    stats["backsolve"].append(solution.stats)
+                    stats["backsolve"].append(
+                        {"status": solution.status, **solution.stats}
+                    )
 
                 # Evaluation points need not include the initial time. Propagate
                 # the first observation's cotangent through the remaining interval.
@@ -466,12 +468,14 @@ class BacksolveFunction(torch.autograd.Function):
                     solution = aug_solver.solve(
                         problem, dt0=dt0, args=(shapes, args), term=aug_term
                     )
-                    # Keep aligned members unchanged; their zero-length dense
-                    # interpolation need not produce a usable value.
+                    # Keep aligned members unchanged
                     aug_state = torch.where(
                         needs_initial_solve[:, None], solution.ys[:, -1], aug_state
                     )
-                    stats["backsolve"].append(solution.stats)
+
+                    stats["backsolve"].append(
+                        {"status": solution.status, **solution.stats}
+                    )
 
         _, grad_y0, *grad_params = unflatten_tensors(shapes, aug_state)
         # Accumulate gradients over samples
@@ -723,7 +727,7 @@ class JointAugmentedDynamicsTerm(nn.Module):
 
 
 class ExpandingStatsSolver:
-    """Broadcast the stats of a joint solve to all instances of the batch"""
+    """Broadcast the stats and status of a joint solve to all instances of the batch"""
 
     def __init__(self, solver, batch_size: int):
         self.solver = solver
@@ -732,7 +736,8 @@ class ExpandingStatsSolver:
     def solve(self, *args, **kwargs) -> Solution:
         solution = self.solver.solve(*args, **kwargs)
         expand_stats(solution.stats, self.batch_size)
-        return solution
+        status = solution.status.expand(self.batch_size)
+        return Solution(solution.ts, solution.ys, solution.stats, status)
 
 
 class JointBacksolveAdjoint(nn.Module):
