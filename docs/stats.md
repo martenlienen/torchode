@@ -29,7 +29,9 @@ All solver components receive the `stats` dictionary and can record their own en
 For example, with three evaluation points that start at `t_start`, there are two backward solves:
 
 ```python
-solver = to.BacksolveAdjoint(term, to.Dopri5(), to.IntegralController(atol=1e-6, rtol=1e-3))
+solver = to.BacksolveAdjoint(
+    term, to.Dopri5(), to.IntegralController(atol=1e-6, rtol=1e-3)
+)
 sol = solver.solve(problem)
 sol.ys.sum().backward()
 print(len(sol.stats["backsolve"]))

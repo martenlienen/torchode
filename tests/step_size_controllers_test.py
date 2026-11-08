@@ -118,6 +118,7 @@ def test_initial_step_respects_step_size_limits(
         dt0, torch.tensor([expected, -expected]), atol=0.0, rtol=1e-3
     )
 
+
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 @pytest.mark.parametrize(
     "controller",
@@ -343,11 +344,15 @@ def test_limit_step_size(controller):
     state = controller.initial_state(
         method_order=5, problem=problem, dt_min=None, dt_max=None
     )
-    _, dt_next_no_limit, _, _ = controller.adapt_step_size(t0, dt, y0, result, state, stats={})
+    _, dt_next_no_limit, _, _ = controller.adapt_step_size(
+        t0, dt, y0, result, state, stats={}
+    )
     assert (dt_next_no_limit > dt_max).any()
 
     state = controller.initial_state(
         method_order=5, problem=problem, dt_min=None, dt_max=dt_max
     )
-    _, dt_next_limited, _, _ = controller.adapt_step_size(t0, dt, y0, result, state, stats={})
+    _, dt_next_limited, _, _ = controller.adapt_step_size(
+        t0, dt, y0, result, state, stats={}
+    )
     assert (dt_next_limited <= dt_max).all()

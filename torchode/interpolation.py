@@ -10,7 +10,7 @@ def poly3eval(d, c, b, a, t, t0, t1):
 
     The coefficients a..3 define the polynomial on the interval [0, 1].
     """
-    dt = (t1 - t0)
+    dt = t1 - t0
     dt = torch.where(dt.abs() > 0.0, dt, 1.0)
     x = ((t - t0) / dt)[:, None].to(dtype=a.dtype)
 
@@ -27,7 +27,7 @@ def poly4eval(e, d, c, b, a, t, t0, t1):
 
     The coefficients a..e define the polynomial on the interval [0, 1].
     """
-    dt = (t1 - t0)
+    dt = t1 - t0
     dt = torch.where(dt.abs() > 0.0, dt, 1.0)
     x = ((t - t0) / (dt))[:, None].to(dtype=a.dtype)
 

@@ -6,6 +6,9 @@ import pytest
 import torch
 import torch.nn as nn
 from pytest import approx
+
+from problems import create_ivp, get_problem
+from stubs import StubStepMethod, StubStepSizeController
 from torchode import (
     AutoDiffAdjoint,
     BacksolveAdjoint,
@@ -19,9 +22,6 @@ from torchode import (
     PIDController,
     Status,
 )
-
-from problems import create_ivp, get_problem
-from stubs import StubStepMethod, StubStepSizeController
 
 
 def test_evaluates_solution_at_evaluation_points():

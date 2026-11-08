@@ -23,7 +23,9 @@ sol = solver.solve(problem)
 If you work with stiff dynamics, the more general `PIDController` might be useful and save a few solver steps as we have explored in [our paper](https://arxiv.org/abs/2210.12375). To use it, just drop it in as a replacement for the `IntegralController`.
 
 ```python
-step_size_controller = to.PIDController(atol=1e-6, rtol=1e-3, pcoeff=0.2, icoeff=0.5, dcoeff=0.0, term=term)
+step_size_controller = to.PIDController(
+    atol=1e-6, rtol=1e-3, pcoeff=0.2, icoeff=0.5, dcoeff=0.0, term=term
+)
 ```
 
 ## Fixed Step Size

@@ -69,10 +69,10 @@ class Tsit5(ExplicitRungeKutta):
     ```
     """
 
+    # fmt: off
     TABLEAU = ButcherTableau.from_lists(
         c=[0.0, 0.161, 0.327, 0.9, 0.9800255409045097, 1.0, 1.0],
         a=[
-            # fmt: off
             [],
             [0.161],
             [-0.008480655492356989, 0.335480655492357],
@@ -80,7 +80,6 @@ class Tsit5(ExplicitRungeKutta):
             [5.325864828439257, -11.748883564062828, 7.4955393428898365, -0.09249506636175525],
             [5.86145544294642, -12.92096931784711, 8.159367898576159, -0.071584973281401, -0.02826905039406838],
             [0.09646076681806523, 0.01, 0.4798896504144996, 1.379008574103742, -3.290069515436081, 2.324710524099774],
-            # fmt: on
         ],
         b=[
             0.09646076681806523,
@@ -110,6 +109,7 @@ class Tsit5(ExplicitRungeKutta):
         ],
         b_other=compute_interpolation_weights(),
     )
+    # fmt: on
 
     def __init__(self, term: ODETerm | None = None):
         super().__init__(term, Tsit5.TABLEAU)

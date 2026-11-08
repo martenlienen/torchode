@@ -1,7 +1,7 @@
-from pytest import approx
 import pytest
 import torch
 from problems import get_problem
+from pytest import approx
 
 from torchode import AutoDiffAdjoint, Dopri5, FixedStepController, Heun, Status, Tsit5
 

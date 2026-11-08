@@ -42,9 +42,7 @@ def sine_solution(t: TimeTensor, *args):
 
 
 def sine_dynamics(t: TimeTensor, y: DataTensor):
-    return (2 * y[:, 0] / t + t**4 * torch.sin(2 * t) - t**2 + 4 * t**3)[
-        ..., None
-    ]
+    return (2 * y[:, 0] / t + t**4 * torch.sin(2 * t) - t**2 + 4 * t**3)[..., None]
 
 
 KNOWN_SOLUTIONS = {"sine": (sine_solution, sine_dynamics)}

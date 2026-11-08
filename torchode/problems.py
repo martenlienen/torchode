@@ -36,7 +36,6 @@ class InitialValueProblem:
             t_end = t_eval[:, -1]
         self.t_end = t_end
 
-
         self.time_direction = torch.where(self.t_end > self.t_start, 1, -1)
 
         if not torch.jit.is_scripting():

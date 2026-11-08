@@ -36,11 +36,14 @@ name = "torchode"
 [tool.flit.sdist]
 exclude = ["tests/"]
 
-[tool.black]
-target-version = ["py311"]
+[tool.ruff]
+target-version = "py311"
 
-[tool.isort]
-known_first_party = ["torchode"]
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["torchode", "problems", "stubs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
