@@ -596,9 +596,15 @@ class AugmentedDynamicsTerm(nn.Module):
 
 
 class BacksolveAdjoint(nn.Module):
+    """Compute gradients by solving the adjoint equations backwards in time.
+
+    The dynamics `f` of `term` must be an `nn.Module`, because the backward pass
+    differentiates the parameters in `term.parameters()`.
+    """
+
     def __init__(
         self,
-        term,
+        term: ODETerm,
         step_method,
         step_size_controller,
         vmap_args_dims=None,
@@ -736,7 +742,14 @@ class ExpandingStatsSolver:
 
 
 class JointBacksolveAdjoint(nn.Module):
-    def __init__(self, term, step_method, step_size_controller):
+    """Compute gradients by solving the adjoint equations of the whole batch
+    jointly.
+
+    The dynamics `f` of `term` must be an `nn.Module`, because the backward pass
+    differentiates the parameters in `term.parameters()`.
+    """
+
+    def __init__(self, term: ODETerm, step_method, step_size_controller):
         super().__init__()
 
         self.term = UnwrappingODETerm(term)

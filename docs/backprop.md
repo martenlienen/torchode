@@ -27,6 +27,10 @@ solutions of your batch of ODEs. Therefore, `to.JointBacksolveAdjoint` should be
 backpropagation choice of last resort. Furthermore, it is only applicable if all ODEs in
 your batch share the same `t_start`, `t_end` and evaluation points.
 
+Both backsolve adjoints need the dynamics `f` of your `to.ODETerm` to be an `nn.Module`,
+because they look up the parameters to differentiate via `term.parameters()`.
+`to.AutoDiffAdjoint` does not have this restriction.
+
 ## Failed solves
 
 Computing gradients is only guaranteed to work for batches where all solves succeeded.
