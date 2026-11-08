@@ -535,3 +535,182 @@ def test_backsolve_gradients_before_first_evaluation(adjoint, n_eval, direction)
     torch.testing.assert_close(solution.ys, expected_values, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_y0, expected_grad_y0, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_A, expected_grad_A, atol=1e-7, rtol=1e-7)
+
+
+@pytest.mark.parametrize("controller_class", [IntegralController, PIDController])
+@pytest.mark.parametrize("with_t_eval", [False, True])
+@pytest.mark.parametrize("directions", [(1.0, 1.0), (-1.0, -1.0), (1.0, -1.0)])
+def test_finished_solves_with_dt_min_do_not_stop_batch(
+    controller_class, with_t_eval, directions
+):
+    term = ODETerm(lambda t, y: torch.ones_like(y))
+    kwargs = (
+        dict(pcoeff=0.2, icoeff=0.5, dcoeff=0.0)
+        if controller_class is PIDController
+        else {}
+    )
+    controller = controller_class(
+        atol=1.0, rtol=0.0, dt_min=0.01, dt_max=0.25, **kwargs
+    )
+    solver = AutoDiffAdjoint(Dopri5(term), controller)
+    y0 = torch.tensor([[1.0], [2.0]], dtype=torch.double)
+    t_start = y0.new_tensor([0.0, 2.0])
+    direction = y0.new_tensor(directions)
+    t_end = t_start + direction * y0.new_tensor([0.25, 1.0])
+    t_eval = torch.stack((t_start, (t_start + t_end) / 2, t_end), dim=1)
+    problem = InitialValueProblem(y0, t_start, t_end, t_eval if with_t_eval else None)
+    dt0 = direction * 0.25
+    solution = solver.solve(problem, dt0=dt0)
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    assert solution.stats["n_steps"].tolist() == [1, 4]
+    assert solution.stats["n_accepted"].tolist() == [1, 4]
+    assert solution.stats["n_initialized"].tolist() == [3 if with_t_eval else 1] * 2
+    expected = y0[:, None] + (solution.ts - t_start[:, None])[:, :, None]
+    torch.testing.assert_close(solution.ys, expected, atol=1e-14, rtol=1e-14)
+    for i in range(2):
+        sample = slice(i, i + 1)
+        single_problem = InitialValueProblem(
+            y0[sample],
+            t_start[sample],
+            t_end[sample],
+            t_eval[sample] if with_t_eval else None,
+        )
+        single = solver.solve(single_problem, dt0=dt0[sample])
+        torch.testing.assert_close(solution.ys[sample], single.ys)
+        torch.testing.assert_close(solution.status[sample], single.status)
+        for stat in ("n_steps", "n_accepted", "n_initialized"):
+            torch.testing.assert_close(solution.stats[stat][sample], single.stats[stat])
+
+
+@pytest.mark.parametrize("controller_class", [IntegralController, PIDController])
+@pytest.mark.parametrize("with_t_eval", [False, True])
+def test_finished_solves_with_dt_min_preserve_nonconstant_solution(
+    controller_class, with_t_eval
+):
+    term = ODETerm(lambda t, y: y)
+    kwargs = (
+        dict(pcoeff=0.2, icoeff=0.5, dcoeff=0.0)
+        if controller_class is PIDController
+        else {}
+    )
+    controller = controller_class(
+        atol=1e-4, rtol=1e-4, dt_min=0.01, dt_max=0.25, **kwargs
+    )
+    solver = AutoDiffAdjoint(Dopri5(term), controller)
+    y0 = torch.ones((2, 1), dtype=torch.double)
+    t_eval = y0.new_tensor([[0.0, 0.125, 0.25], [0.0, 0.5, 1.0]])
+    problem = InitialValueProblem(
+        y0, t_eval[:, 0], t_eval[:, -1], t_eval if with_t_eval else None
+    )
+    solution = solver.solve(problem, dt0=y0.new_full((2,), 0.25))
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    assert solution.stats["n_steps"].tolist() == [1, 4]
+    assert solution.stats["n_initialized"].tolist() == [3 if with_t_eval else 1] * 2
+    torch.testing.assert_close(
+        solution.ys[:, :, 0], solution.ts.exp(), atol=1e-6, rtol=1e-6
+    )
+    for i in range(2):
+        sample = slice(i, i + 1)
+        single_problem = InitialValueProblem(
+            y0[sample],
+            problem.t_start[sample],
+            problem.t_end[sample],
+            t_eval[sample] if with_t_eval else None,
+        )
+        single = solver.solve(single_problem, dt0=y0.new_full((1,), 0.25))
+        torch.testing.assert_close(solution.ys[sample], single.ys)
+
+
+@pytest.mark.parametrize("status_source", ["method", "controller", "both"])
+def test_finished_solves_ignore_method_and_controller_status(status_source):
+    term, problem = create_ivp(
+        lambda t, y: torch.ones_like(y), [[0.0], [0.0]], [[0.0, 0.25], [0.0, 1.0]]
+    )
+    method = Euler(term)
+    controller = FixedStepController()
+    if status_source in ("method", "both"):
+        method = StubStepMethod(
+            lambda t, *args: torch.zeros((len(t), 1)),
+            Mock(side_effect=[0] + [[Status.GENERAL_ERROR.value, 0]] * 3),
+        )
+    if status_source in ("controller", "both"):
+        controller = StubStepSizeController(
+            0.25,
+            0.25,
+            True,
+            Mock(side_effect=[0] + [[Status.REACHED_DT_MIN.value, 0]] * 3),
+        )
+    solution = AutoDiffAdjoint(method, controller).solve(
+        problem, dt0=torch.full((2,), 0.25)
+    )
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    assert solution.stats["n_steps"].tolist() == [1, 4]
+    assert solution.stats["n_initialized"].tolist() == [2, 2]
+
+
+@pytest.mark.parametrize("accept_last_step", [False, True])
+@pytest.mark.parametrize(
+    "method_status, controller_status, expected_status",
+    [
+        (Status.GENERAL_ERROR.value, 0, Status.GENERAL_ERROR.value),
+        (0, Status.REACHED_DT_MIN.value, Status.REACHED_DT_MIN.value),
+        (
+            Status.GENERAL_ERROR.value,
+            Status.REACHED_DT_MIN.value,
+            Status.REACHED_DT_MIN.value,
+        ),
+    ],
+)
+def test_active_solve_errors_survive_rejection_or_completion(
+    method_status, controller_status, expected_status, accept_last_step
+):
+    _, problem = create_ivp(
+        lambda t, y: y, [[0.0], [0.0]], [[0.0, 0.25], [0.0, 0.5]]
+    )
+    method = StubStepMethod(
+        lambda t, *args: torch.zeros((len(t), 1)),
+        Mock(side_effect=[0, [Status.INFINITE_NORM.value, method_status]]),
+    )
+    controller = StubStepSizeController(
+        0.25,
+        0.25,
+        Mock(side_effect=[True, accept_last_step]),
+        Mock(side_effect=[0, [Status.INFINITE_NORM.value, controller_status]]),
+    )
+    solution = AutoDiffAdjoint(method, controller).solve(problem)
+
+    assert solution.status.tolist() == [Status.SUCCESS.value, expected_status]
+    assert solution.stats["n_steps"].tolist() == [1, 2]
+    assert solution.stats["n_accepted"].tolist() == [1, 1 + accept_last_step]
+    assert solution.stats["n_initialized"].tolist() == [2, 1 + accept_last_step]
+
+
+@pytest.mark.parametrize("max_steps", [None, 3, 4])
+def test_finished_solves_with_no_status_preserve_max_steps(max_steps):
+    term, problem = create_ivp(
+        lambda t, y: torch.ones_like(y), [[0.0], [0.0]], [[0.0, 0.25], [0.0, 1.0]]
+    )
+    solver = AutoDiffAdjoint(Euler(term), FixedStepController(), max_steps=max_steps)
+    solution = solver.solve(problem, dt0=torch.full((2,), 0.25))
+
+    # Reaching the endpoint at exactly max_steps must still report the step limit.
+    expected_status = Status.SUCCESS if max_steps is None else Status.REACHED_MAX_STEPS
+    assert solution.status.tolist() == [Status.SUCCESS.value, expected_status.value]
+    assert solution.stats["n_steps"].tolist() == [1, 3 if max_steps == 3 else 4]
+    assert solution.stats["n_initialized"].tolist() == [2, 1 if max_steps == 3 else 2]
+
+
+def test_max_steps_still_overrides_method_and_controller_errors():
+    _, problem = create_ivp(lambda t, y: y, [[0.0]], [[0.0, 0.25]])
+    method = StubStepMethod(
+        lambda t, *args: torch.zeros((len(t), 1)), Status.INFINITE_NORM.value
+    )
+    controller = StubStepSizeController(0.25, 0.25, True, Status.GENERAL_ERROR.value)
+    solution = AutoDiffAdjoint(method, controller, max_steps=1).solve(problem)
+
+    assert solution.status.tolist() == [Status.REACHED_MAX_STEPS.value]
+    assert solution.stats["n_steps"].tolist() == [1]
+    assert solution.stats["n_initialized"].tolist() == [2]

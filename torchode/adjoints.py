@@ -165,20 +165,24 @@ class AutoDiffAdjoint(nn.Module):
             # Update solver state and status #
             ##################################
 
-            # Stop a solve if `t` has passed its endpoint in the direction of time
-            running = torch.addcmul(minus_t_end_normalized, time_direction, t) < 0.0
-
             status = method_status
             if status is None:
                 status = controller_status
             elif controller_status is not None:
                 status = torch.maximum(status, controller_status)
+            if status is not None:
+                # Ignore errors from solves that finished before this step. Solves
+                # that finish or reject this step must still report their errors.
+                status = torch.where(running, status, status_codes.SUCCESS)
             if max_steps is not None:
                 status = torch.where(
                     stats_n_steps >= max_steps,
                     status_codes.REACHED_MAX_STEPS,
                     status if status is not None else status_codes.SUCCESS,
                 )
+
+            # Stop a solve if `t` has passed its endpoint in the direction of time
+            running = torch.addcmul(minus_t_end_normalized, time_direction, t) < 0.0
 
             # We evaluate the termination condition here already and initiate a
             # non-blocking transfer to the CPU to increase the chance that we won't have
