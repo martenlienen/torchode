@@ -24,7 +24,20 @@ All solver components receive the `stats` dictionary and can record their own en
 
 ## Adjoint gradient computation statistics
 
-`to.BacksolveAdjoint` and `to.JointBacksolveAdjoint` solve the adjoint equations backwards in time when you call `backward()`. Afterwards, `sol.stats["backsolve"]` holds a list with the statistics of each backward solve and the same keys as above. The backward pass solves one segment between each pair of consecutive evaluation points, starting from the last one, and one more from the first evaluation point back to `t_start` if they differ. Without `t_eval`, there is a single backward solve from `t_end` to `t_start`.
+`to.BacksolveAdjoint` and `to.JointBacksolveAdjoint` solve the adjoint equations backwards in time when you call `backward()`. The backward pass adds its statistics in-place to the `sol.stats` dictionary of the forward solve as `sol.stats["backsolve"]`. It holds a list with the statistics of each backward solve and the same keys as above. The backward pass solves one segment between each pair of consecutive evaluation points, starting from the last one, and one more from the first evaluation point back to `t_start` if they differ. Without `t_eval`, there is a single backward solve from `t_end` to `t_start`.
+
+For example, with three evaluation points that start at `t_start`, there are two backward solves:
+
+```python
+solver = to.BacksolveAdjoint(term, to.Dopri5(), to.IntegralController(atol=1e-6, rtol=1e-3))
+sol = solver.solve(problem)
+sol.ys.sum().backward()
+print(len(sol.stats["backsolve"]))
+# => 2
+print(sol.stats["backsolve"][0])
+# => {'status': tensor([0, 0]), 'n_f_evals': tensor([32, 32]), 'n_steps': tensor([4, 5]),
+# =>  'n_accepted': tensor([4, 5]), 'n_initialized': tensor([1, 1])}
+```
 
 In addition to the keys above, each entry in `sol.stats["backsolve"]` has a `"status"` key with one status code per instance. If a backward solve fails, the gradients of that instance with respect to `y0`, `t_start` and the parameters become NaN. Since the gradients of the parameters sum over all instances, they become NaN for the whole batch. The backward solves of the remaining segments then start from a NaN state and fail with `INFINITE_NORM`, so the first failed entry in the list shows the actual cause.
 
