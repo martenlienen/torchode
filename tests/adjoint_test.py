@@ -444,15 +444,20 @@ class LinearDynamics(nn.Module):
         return y @ self.A
 
 
+@pytest.mark.parametrize("adjoint", [BacksolveAdjoint, JointBacksolveAdjoint])
 @pytest.mark.parametrize(["dt0", "bw_dt0"], [(0.1, None), (0.2, -0.5)])
-def test_backsolve_adjoint_with_fixed_step_controller(dt0, bw_dt0):
+def test_backsolve_adjoint_with_fixed_step_controller(adjoint, dt0, bw_dt0):
     y0 = torch.arange(6, dtype=torch.float).reshape((2, 3))
     term = ODETerm(LinearDynamics(nn.Parameter(torch.arange(9).reshape((3, 3)) / 8)))
-    t_eval = torch.tensor([[0.0, 1.77, 3.0], [2.0, 3.5, 6.0]])
+    if adjoint is JointBacksolveAdjoint:
+        # JointBacksolveAdjoint requires all instances to share their times
+        t_eval = torch.tensor([[0.0, 1.77, 3.0], [0.0, 1.77, 3.0]])
+    else:
+        t_eval = torch.tensor([[0.0, 1.77, 3.0], [2.0, 3.5, 6.0]])
     problem = InitialValueProblem(
         y0, t_start=t_eval[:, 0], t_end=t_eval[:, -1], t_eval=t_eval
     )
-    adjoint = BacksolveAdjoint(term, Dopri5(), FixedStepController())
+    adjoint = adjoint(term, Dopri5(), FixedStepController())
 
     dt0 = torch.full((2,), dt0) if dt0 is not None else None
     bw_dt0 = torch.full((2,), bw_dt0) if bw_dt0 is not None else None

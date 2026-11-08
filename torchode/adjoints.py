@@ -786,6 +786,10 @@ class JointBacksolveAdjoint(nn.Module):
         t_start = problem.t_start[:1]
         t_end = problem.t_end[:1]
         t_eval = None if problem.t_eval is None else problem.t_eval[:1]
+        if dt0 is not None:
+            dt0 = dt0[:1]
+        if backward_dt0 is not None:
+            backward_dt0 = backward_dt0[:1]
 
         if backward_dt0 is None and dt0 is not None:
             backward_dt0 = -dt0
