@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A page documenting the solver statistics like number of function evaluation and number of accepted solver steps.
 - A page documenting the implemented step methods.
+- A page explaining the properties of a solution object.
 
 ### Changed
 
