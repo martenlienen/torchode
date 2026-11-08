@@ -535,3 +535,52 @@ def test_backsolve_gradients_before_first_evaluation(adjoint, n_eval, direction)
     torch.testing.assert_close(solution.ys, expected_values, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_y0, expected_grad_y0, atol=1e-7, rtol=1e-7)
     torch.testing.assert_close(grad_A, expected_grad_A, atol=1e-7, rtol=1e-7)
+
+
+class BufferedLinearDynamics(nn.Module):
+    def __init__(self, matrix):
+        super().__init__()
+
+        self.register_buffer("matrix", matrix)
+
+    def forward(self, t, y):
+        return y @ self.matrix
+
+
+@pytest.mark.parametrize("with_t_eval", [False, True])
+def test_backsolve_adjoint_buffer_dtype_conversion(with_t_eval):
+    # Construct before conversion so backward must read the replacement buffer.
+    matrix = torch.tensor([[-0.2, 0.1], [0.05, -0.3]], dtype=torch.float32)
+    dynamics = BufferedLinearDynamics(matrix)
+    term = ODETerm(dynamics)
+    solver = BacksolveAdjoint(term, Dopri5(), IntegralController(1e-8, 1e-8)).double()
+
+    y0 = torch.tensor([[1.0, 2.0], [-0.5, 1.5]], dtype=torch.double, requires_grad=True)
+
+    if with_t_eval:
+        t_eval = torch.tensor([[0.0, 0.5, 1.0], [0.2, 0.7, 1.4]], dtype=torch.double)
+        problem = InitialValueProblem(y0, t_eval=t_eval)
+        eval_times = t_eval
+    else:
+        t_start = torch.tensor([0.0, 0.2], dtype=torch.double)
+        t_end = torch.tensor([1.0, 1.4], dtype=torch.double)
+        problem = InitialValueProblem(y0, t_start=t_start, t_end=t_end, t_eval=None)
+        eval_times = t_end[:, None]
+
+    solution = solver.solve(problem)
+    assert (solution.status == Status.SUCCESS.value).all()
+
+    loss = solution.ys.sum()
+    grad_y0 = torch.autograd.grad(loss, y0)[0]
+
+    # Independent solution: y(t) = y0 @ exp(M * (t - t_start)).
+    dt = eval_times - problem.t_start[:, None]
+    dt_M = dt.unsqueeze(-1).unsqueeze(-1) * dynamics.matrix
+    E = torch.matrix_exp(dt_M)
+    expected_ys = (y0.detach().unsqueeze(1).unsqueeze(2) @ E).squeeze(2)
+
+    # For scalar loss = solution.ys.sum(), d(loss)/d(y0) is the sum of row sums of E
+    expected_grad_y0 = E.sum(dim=(-1, 1))
+
+    torch.testing.assert_close(solution.ys, expected_ys, atol=1e-6, rtol=1e-6)
+    torch.testing.assert_close(grad_y0, expected_grad_y0, atol=1e-6, rtol=1e-6)

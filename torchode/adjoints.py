@@ -471,7 +471,6 @@ class AugmentedDynamicsTerm(nn.Module):
 
         f = self.term.f
         orig_params = dict(f.named_parameters())
-        buffers = dict(f.named_buffers())
         params_names = orig_params.keys()
 
         def vjp_single_sample(t_i, y_i, adj_y_i, arg_i):
@@ -480,7 +479,7 @@ class AugmentedDynamicsTerm(nn.Module):
                 if self.term.with_args:
                     args = args + (arg_i,)
                 params_dict = {name: value for name, value in zip(params_names, params)}
-                return torch.func.functional_call(f, (params_dict, buffers), args)
+                return torch.func.functional_call(f, params_dict, args)
 
             dy, vjp = torch.func.vjp(wrapper, tuple(orig_params.values()), t_i, y_i)
             vjp_params, vjp_t, vjp_y = vjp(-adj_y_i)
