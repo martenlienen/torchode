@@ -69,6 +69,8 @@ print(limited_sol.ys[:, :, 0])
 
 torchode does not raise an error for failed solves, so check `sol.status` if your problems can fail.
 
+Gradients are only guaranteed if all solves in the batch succeeded, see [Failed solves](backprop.md#failed-solves).
+
 ### `sol.stats`
 
 A dictionary with statistics about the solve, such as the number of steps and function evaluations of each instance. See [Solver Statistics](stats.md) for all entries. For the successful solve from the first example:

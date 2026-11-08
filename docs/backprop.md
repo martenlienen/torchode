@@ -26,3 +26,17 @@ independently, because the joint discretization introduces a subtle coupling bet
 solutions of your batch of ODEs. Therefore, `to.JointBacksolveAdjoint` should be your
 backpropagation choice of last resort. Furthermore, it is only applicable if all ODEs in
 your batch share the same `t_start`, `t_end` and evaluation points.
+
+## Failed solves
+
+Computing gradients is only guaranteed to work for batches where all solves succeeded.
+You might get gradients in other cases, e.g. by only backpropagating through valid `ys`
+with `to.AutoDiffAdjoint`, but it is not guaranteed. Therefore, the safe pattern is to
+skip the update for batches with failed solves:
+
+```python
+sol = solver.solve(problem)
+if (sol.status == to.Status.SUCCESS.value).all():
+    loss_fn(sol.ys).backward()
+    optimizer.step()
+```
