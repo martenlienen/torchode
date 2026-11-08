@@ -15,6 +15,7 @@ nav:
   - backprop.md
   - jit.ipynb
   - extra-args.md
+  - stats.md
   - extra-stats.ipynb
   - nd-data.md
   - torchdiffeq.ipynb

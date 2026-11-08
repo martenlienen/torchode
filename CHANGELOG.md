@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 1.0.2 - 2026-11-02
 
+### Added
+
+- A page documenting the solver statistics like number of function evaluation and number of accepted solver steps.
+
 ### Fixed
 
 - Both adjoint backward pass implementations now produce the correct gradients if `t_eval` is explicitly set but does not include `t_start`. The bug was that the adjoint backward passes would only propagate the gradients back to the first evaluation point and thus discount the effect between `t_start` and `t_eval[:, 0]`.

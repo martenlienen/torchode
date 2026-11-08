@@ -1,0 +1,31 @@
+# Solver Statistics
+
+torchode captures statistics about each solve in `sol.stats`. Each entry is a tensor with one value per instance in the batch.
+
+```python
+sol = solver.solve(problem)
+print(sol.stats)
+# => {'n_f_evals': tensor([26, 26]), 'n_steps': tensor([4, 2]),
+# =>  'n_accepted': tensor([4, 2]), 'n_initialized': tensor([10, 10])}
+```
+
+## Entries
+
+The built-in components collect the following statistics:
+
+- `n_f_evals`: Number of evaluations of the dynamics (also known as NFE). The dynamics are always evaluated for the whole batch at once, so this number is the same for all instances regardless of how many steps they actually take. You can disable collecting this number by passing `with_stats=False` to your `ODETerm`.
+- `n_steps`: Number of steps that the solver attempted for each instance, including rejected steps.
+- `n_accepted`: Number of accepted steps for each instance. `n_steps - n_accepted` is the number of rejected steps.
+- `n_initialized`: Number of evaluation points at the start of `t_eval` that hold solution values. For a successful solve, this is the number of evaluation points. If a solve fails (`status != to.Status.SUCCESS`), only the first `n_initialized` entries of its `sol.ys` are valid and the rest is uninitialized memory. Without `t_eval`, the solution is only evaluated at `t_end` and this entry is always 1.
+
+## Custom statistics
+
+All solver components receive the `stats` dictionary and can record their own entries. See [Logging Solver Information](extra-stats.ipynb) for an example that tracks every step.
+
+## Adjoint gradient computation statistics
+
+`to.BacksolveAdjoint` and `to.JointBacksolveAdjoint` solve the adjoint equations backwards in time when you call `backward()`. Afterwards, `sol.stats["backsolve"]` holds a list with the statistics of each backward solve and the same keys as above. The backward pass solves one segment between each pair of consecutive evaluation points, starting from the last one, and one more from the first evaluation point back to `t_start` if they differ. Without `t_eval`, there is a single backward solve from `t_end` to `t_start`.
+
+The backward `n_f_evals` count the evaluations of the augmented dynamics, which evaluate your model and its vector-Jacobian product together. They do not include the evaluations for gradients with respect to `t_start`, `t_end` and `t_eval`.
+
+`to.JointBacksolveAdjoint` solves the whole batch as one joint system, so all instances share the same values in both the forward and the backward statistics.
