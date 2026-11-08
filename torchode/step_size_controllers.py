@@ -178,7 +178,7 @@ def rms_norm(y: DataTensor) -> NormTensor:
     .. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
            Equations I: Nonstiff Problems", Sec. II.4, 2nd edition.
     """
-    # `vector_norm` autmatically deals with complex vectors correctly
+    # `vector_norm` automatically deals with complex vectors correctly
     return torch.linalg.vector_norm(y / sqrt(y.shape[1]), ord=2, dim=1)
 
 
