@@ -1,5 +1,5 @@
 [build-system]
-requires = ["flit_core ~= 3.7"]
+requires = ["flit_core >= 4.2, < 5"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -7,13 +7,13 @@ name = "torchode"
 dynamic = ["version", "description"]
 readme = "README.md"
 requires-python = ">= 3.11"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "Marten Lienen", email = "m.lienen@tum.de"}]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python"
 ]
