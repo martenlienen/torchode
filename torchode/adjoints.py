@@ -80,8 +80,11 @@ class AutoDiffAdjoint(nn.Module):
         minus_t_eval_normalized: torch.Tensor = y
 
         if t_eval is not None:
-            y_eval = y.new_empty(
-                (batch_size, problem.n_evaluation_points, problem.n_features)
+            # Initialize to NaN to make it easy to detect usage of uninitialized
+            # results
+            y_eval = y.new_full(
+                (batch_size, problem.n_evaluation_points, problem.n_features),
+                float("nan"),
             )
 
             # Keep track of which evaluation points have not yet been handled
@@ -292,8 +295,7 @@ class AutoDiffAdjoint(nn.Module):
 
             if t_eval is not None:
                 # Report the number of evaluation steps that have been initialized with
-                # actual data at termination. Depending on the termination condition,
-                # the data might be NaN or inf but it will not be uninitialized memory.
+                # actual data at termination.
                 #
                 # As of torch 1.12.1, searchsorted is not implemented for bool tensors,
                 # so we convert to int first.
@@ -304,16 +306,16 @@ class AutoDiffAdjoint(nn.Module):
 
                 return Solution(ts=t_eval, ys=y_eval, stats=stats, status=status)
             else:
-                # Evaluate the solution only at the end point, e.g. in continuous
-                # normalizing flows
+                # Evaluate successful solutions only at the end point, e.g. in
+                # continuous normalizing flows
                 interpolation = step_method.build_interpolation(interp_data)
+                success = status == status_codes.SUCCESS
                 y_end = interpolation.evaluate(
                     t_end, torch.arange(batch_size, device=device)
                 )
+                y_end = torch.where(success[:, None], y_end, float("nan"))
 
-                stats["n_initialized"] = torch.ones(
-                    batch_size, dtype=torch.long, device=device
-                )
+                stats["n_initialized"] = success.long()
 
                 return Solution(
                     ts=t_end[:, None], ys=y_end[:, None], stats=stats, status=status

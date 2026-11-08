@@ -16,7 +16,7 @@ The built-in components collect the following statistics:
 - `n_f_evals`: Number of evaluations of the dynamics (also known as NFE). The dynamics are always evaluated for the whole batch at once, so this number is the same for all instances regardless of how many steps they actually take. You can disable collecting this number by passing `with_stats=False` to your `ODETerm`.
 - `n_steps`: Number of steps that the solver attempted for each instance, including rejected steps.
 - `n_accepted`: Number of accepted steps for each instance. `n_steps - n_accepted` is the number of rejected steps.
-- `n_initialized`: Number of evaluation points at the start of `t_eval` that hold solution values. For a successful solve, this is the number of evaluation points. If a solve fails (`status != to.Status.SUCCESS`), only the first `n_initialized` entries of its `sol.ys` are valid and the rest is uninitialized memory. Without `t_eval`, the solution is only evaluated at `t_end` and this entry is always 1.
+- `n_initialized`: Number of evaluation points at the start of `t_eval` that hold solution values. For a successful solve, this is the number of evaluation points. If a solve fails (`status != to.Status.SUCCESS`), only the first `n_initialized` entries of its `sol.ys` are valid and the rest is NaN. Without `t_eval`, the solution is only evaluated at `t_end` and this entry is 1 for a successful solve and 0 for a failed one.
 
 ## Custom statistics
 

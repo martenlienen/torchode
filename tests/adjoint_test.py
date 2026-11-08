@@ -131,10 +131,13 @@ def test_finishing_on_the_last_allowed_step_is_success():
     assert solution.stats["n_steps"].tolist() == [4]
 
 
-def test_terminates_after_max_steps():
+@pytest.mark.parametrize("with_t_eval", [False, True])
+def test_terminates_after_max_steps(with_t_eval):
     y0 = torch.zeros((2, 1))
     t_eval = torch.tensor([[1.0, 4.9], [2.0, 13.0]])
-    problem = InitialValueProblem(y0, t_eval[:, 0], t_eval[:, -1], t_eval)
+    problem = InitialValueProblem(
+        y0, t_eval[:, 0], t_eval[:, -1], t_eval if with_t_eval else None
+    )
     y = lambda t, *args: y0[args[0]] if len(args) > 0 else y0
     step_method = StubStepMethod(y, Status.SUCCESS.value)
     adjoint = AutoDiffAdjoint(step_method, FixedStepController(), max_steps=7)
@@ -145,7 +148,14 @@ def test_terminates_after_max_steps():
         Status.REACHED_MAX_STEPS.value,
     ]
     assert solution.stats["n_steps"].tolist() == [4, 7]
-    assert solution.stats["n_initialized"].tolist() == [2, 1]
+    # Only the evaluation points that the failed solve reached hold values
+    if with_t_eval:
+        assert solution.stats["n_initialized"].tolist() == [2, 1]
+        assert solution.ys[1, 1:].isnan().all()
+    else:
+        assert solution.stats["n_initialized"].tolist() == [1, 0]
+        assert solution.ys[1].isnan().all()
+    assert solution.ys[0].isfinite().all()
 
 
 def test_rejected_steps_continue_at_same_place():
