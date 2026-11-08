@@ -1,13 +1,10 @@
 # Comparison to other solvers
 
 The main points that differentiate torchode from other PyTorch ODE solvers are of course
-[JIT compatibility](./jit.ipynb) and batch parallelization. JIT compilation can speed up
-your model and the fact that torchode is fully compatible means that you can compile your
-complete model, even if it uses an ODE solver internally, for example for continuously
-evolving latent representations. Compiled models can also participate in other advanced
-PyTorch mechanisms such as [ONNX export](https://pytorch.org/docs/stable/onnx.html) or
-[optimization with
-nvFuser](https://pytorch.org/blog/introducing-nvfuser-a-deep-learning-compiler-for-pytorch/).
+[compatibility with `torch.compile`](./jit.ipynb) and batch parallelization. Compilation
+can speed up your model and the fact that torchode is fully compatible means that you
+can compile your complete model, even if it uses an ODE solver internally, for example
+for continuously evolving latent representations.
 
 Keeping track of each sample's solver state in batched training separately means that
 torchode can step every sample forward in time and accept or reject their steps

@@ -3,12 +3,12 @@
 ![pytest](https://github.com/martenlienen/torchode/actions/workflows/python-package.yml/badge.svg)
 
 torchode is a suite of single-step ODE solvers such as `dopri5` or `tsit5` that are
-compatible with PyTorch's JIT compiler and parallelized across a batch. JIT compilation
-often gives a performance boost, especially for code with many small operations such as an
-ODE solver, while batch-parallelization means that the solver can take a step of `0.1` for
-one sample and `0.33` for another, depending on each sample's difficulty. This can avoid
-performance traps for models of varying stiffness and ensures that the model's predictions
-are independent from the compisition of the batch. See the
+compatible with PyTorch's JIT compiler `torch.compile` and parallelized across a batch.
+Compilation often gives a performance boost, especially for code with many small
+operations such as an ODE solver, while batch-parallelization means that the solver can
+take a step of `0.1` for one sample and `0.33` for another, depending on each sample's
+difficulty. This can avoid performance traps for models of varying stiffness and ensures
+that the model's predictions are independent from the composition of the batch. See the
 [paper](https://openreview.net/forum?id=uiKVKTiUYB0) for details.
 
 - [*Documentation*](https://torchode.readthedocs.org)
@@ -51,9 +51,9 @@ term = to.ODETerm(f)
 step_method = to.Dopri5(term=term)
 step_size_controller = to.IntegralController(atol=1e-6, rtol=1e-3, term=term)
 solver = to.AutoDiffAdjoint(step_method, step_size_controller)
-jit_solver = torch.compile(solver)
+compiled_solve = torch.compile(solver.solve)
 
-sol = jit_solver.solve(to.InitialValueProblem(y0=y0, t_eval=t_eval))
+sol = compiled_solve(to.InitialValueProblem(y0=y0, t_eval=t_eval))
 print(sol.stats)
 # => {'n_f_evals': tensor([26, 26]), 'n_steps': tensor([4, 2]),
 # =>  'n_accepted': tensor([4, 2]), 'n_initialized': tensor([10, 10])}
