@@ -73,7 +73,7 @@ def solve_ivp(
     # shape
 
     if not isinstance(method, SingleStepMethod):
-        method = METHODS[method](term=term)
+        method = METHODS[method](term)
 
     if controller is None:
         controller = PIDController(
