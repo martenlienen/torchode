@@ -1,4 +1,5 @@
-from typing import Any, Dict, NamedTuple, Optional, Tuple
+from types import NoneType
+from typing import Any, NamedTuple
 
 import torch
 import torch.nn as nn
@@ -10,8 +11,6 @@ from ..terms import ODETerm
 from ..typing import *
 from .base import StepResult
 
-NoneType = type(None)
-
 
 class LinearInterpolationData(NamedTuple):
     t0: TimeTensor
@@ -21,7 +20,7 @@ class LinearInterpolationData(NamedTuple):
 
 
 class Euler(nn.Module):
-    def __init__(self, term: Optional[ODETerm] = None):
+    def __init__(self, term: ODETerm | None = None):
         super().__init__()
 
         self.term = term
@@ -29,11 +28,11 @@ class Euler(nn.Module):
     @torch.jit.export
     def init(
         self,
-        term: Optional[ODETerm],
+        term: ODETerm | None,
         problem: InitialValueProblem,
-        f0: Optional[DataTensor],
+        f0: DataTensor | None,
         *,
-        stats: Dict[str, Any],
+        stats: dict[str, Any],
         args: Any,
     ) -> NoneType:
         return None
@@ -41,16 +40,16 @@ class Euler(nn.Module):
     @torch.jit.export
     def step(
         self,
-        term: Optional[ODETerm],
+        term: ODETerm | None,
         running: AcceptTensor,
         y0: DataTensor,
         t0: TimeTensor,
         dt: TimeTensor,
         state: NoneType,
         *,
-        stats: Dict[str, Any],
+        stats: dict[str, Any],
         args: Any,
-    ) -> Tuple[StepResult, LinearInterpolationData, NoneType, Optional[StatusTensor]]:
+    ) -> tuple[StepResult, LinearInterpolationData, NoneType, StatusTensor | None]:
         term_ = term
         if torch.jit.is_scripting() or term_ is None:
             assert term is None, "The integration term is fixed for JIT compilation"

@@ -661,7 +661,7 @@ def test_backsolve_gradients_with_respect_to_times(adjoint, times):
         (t_start_leaf, t_end_leaf, t_eval_leaf),
         materialize_grads=True,
     )
-    for grad, expected_grad in zip(grads, expected):
+    for grad, expected_grad in zip(grads, expected, strict=True):
         torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
 
 
@@ -744,7 +744,7 @@ def test_backsolve_gradients_with_frozen_parameters(adjoint, A_frozen, b_frozen)
     # Differentiate the exact solution y(1) = (y0 + b / a) * exp(a) - b / a
     a = A[0, 0]
     expected = torch.autograd.grad(((y0 + b / a) * a.exp() - b / a).sum(), inputs)
-    for grad, expected_grad in zip(grads, expected):
+    for grad, expected_grad in zip(grads, expected, strict=True):
         torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
 
 
@@ -780,7 +780,7 @@ def test_backsolve_backward_passes_batched_inputs_to_dynamics(with_args):
     rate = rate if with_args else torch.ones_like(rate)
     exact = (y0 * torch.exp(a * rate[:, None] / 2)).sum()
     expected = torch.autograd.grad(exact, (y0, a))
-    for grad, expected_grad in zip(grads, expected):
+    for grad, expected_grad in zip(grads, expected, strict=True):
         torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
 
 

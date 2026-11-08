@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from .typing import *
 
@@ -8,7 +8,7 @@ class Solution:
         self,
         ts: EvaluationTimesTensor,
         ys: SolutionDataTensor,
-        stats: Dict[str, Any],
+        stats: dict[str, Any],
         status: StatusTensor,
     ):
         self.ts = ts

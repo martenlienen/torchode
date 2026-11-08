@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 name = "torchode"
 dynamic = ["version", "description"]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.11"
 license = {file = "LICENSE"}
 authors = [{name = "Marten Lienen", email = "m.lienen@tum.de"}]
 classifiers = [
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "numpy ~= 1.22"]
+test = ["pytest", "numpy >= 2"]
 benchmark = ["pytest-benchmark"]
 
 [project.urls]
@@ -37,7 +37,7 @@ name = "torchode"
 exclude = ["tests/"]
 
 [tool.black]
-target-version = ["py310"]
+target-version = ["py311"]
 
 [tool.isort]
 known_first_party = ["torchode"]

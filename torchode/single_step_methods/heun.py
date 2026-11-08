@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 
 from ..interpolation import ThirdOrderPolynomialInterpolation
@@ -12,7 +10,7 @@ class Heun(ExplicitRungeKutta):
         c=[0.0, 1.0], a=[[], [1.0]], b=[1 / 2, 1 / 2], b_low_order=[1.0, 0.0]
     )
 
-    def __init__(self, term: Optional[ODETerm] = None):
+    def __init__(self, term: ODETerm | None = None):
         super().__init__(term, Heun.TABLEAU)
 
     @torch.jit.export

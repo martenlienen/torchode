@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 
 from ..interpolation import FourthOrderPolynomialInterpolation
@@ -43,7 +41,7 @@ class Dopri5(ExplicitRungeKutta):
         ],
     )
 
-    def __init__(self, term: Optional[ODETerm] = None):
+    def __init__(self, term: ODETerm | None = None):
         super().__init__(term, Dopri5.TABLEAU)
 
     @torch.jit.export

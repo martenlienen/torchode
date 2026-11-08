@@ -1,38 +1,21 @@
-from typing import Optional
+from itertools import pairwise
 
 import torch
 from torchtyping import TensorType, is_float
 
 
 def same_dtype(*tensors: torch.Tensor):
-    if len(tensors) <= 1:
-        return True
-    for a, b in zip(tensors[:-1], tensors[1:]):
-        if a.dtype != b.dtype:
-            return False
-    return True
+    return all(a.dtype == b.dtype for a, b in pairwise(tensors))
 
 
 def same_device(*tensors: torch.Tensor):
-    if len(tensors) <= 1:
-        return True
-    for a, b in zip(tensors[:-1], tensors[1:]):
-        if a.device != b.device:
-            return False
-    return True
+    return all(a.device == b.device for a, b in pairwise(tensors))
 
 
-def same_shape(*tensors: torch.Tensor, dim: Optional[int] = None):
-    if len(tensors) <= 1:
-        return True
-    for a, b in zip(tensors[:-1], tensors[1:]):
-        if dim is None:
-            if a.shape != b.shape:
-                return False
-        else:
-            if a.shape[dim] != b.shape[dim]:
-                return False
-    return True
+def same_shape(*tensors: torch.Tensor, dim: int | None = None):
+    if dim is None:
+        return all(a.shape == b.shape for a, b in pairwise(tensors))
+    return all(a.shape[dim] == b.shape[dim] for a, b in pairwise(tensors))
 
 
 ################

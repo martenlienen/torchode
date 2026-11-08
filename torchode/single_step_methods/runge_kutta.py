@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, NamedTuple
 
 import torch
 import torch.nn as nn
@@ -40,9 +40,9 @@ class ButcherTableau:
         # Coefficients for the error estimate
         b_err: WeightVector,
         # Additional additional rows of the b matrix
-        b_other: Optional[WeightMatrix] = None,
-        fsal: Optional[bool] = None,
-        ssal: Optional[bool] = None,
+        b_other: WeightMatrix | None = None,
+        fsal: bool | None = None,
+        ssal: bool | None = None,
     ):
         self.c = c
         self.a = a
@@ -60,12 +60,12 @@ class ButcherTableau:
     @staticmethod
     def from_lists(
         *,
-        c: List[float],
-        a: List[List[float]],
-        b: List[float],
-        b_err: Optional[List[float]] = None,
-        b_low_order: Optional[List[float]] = None,
-        b_other: Optional[List[List[float]]] = None,
+        c: list[float],
+        a: list[list[float]],
+        b: list[float],
+        b_err: list[float] | None = None,
+        b_low_order: list[float] | None = None,
+        b_other: list[list[float]] | None = None,
     ):
         assert b_err is not None or b_low_order is not None, (
             "You have to provide either the weights for the error approximation"
@@ -169,11 +169,11 @@ class ERKInterpolationData(NamedTuple):
 
 class ERKState(NamedTuple):
     tableau: ButcherTableau
-    prev_vf1: Optional[DataTensor]
+    prev_vf1: DataTensor | None
 
 
 class ExplicitRungeKutta(nn.Module):
-    def __init__(self, term: Optional[ODETerm], tableau: ButcherTableau):
+    def __init__(self, term: ODETerm | None, tableau: ButcherTableau):
         super().__init__()
 
         self.term = term
@@ -182,11 +182,11 @@ class ExplicitRungeKutta(nn.Module):
     @torch.jit.export
     def init(
         self,
-        term: Optional[ODETerm],
+        term: ODETerm | None,
         problem: InitialValueProblem,
-        f0: Optional[DataTensor],
+        f0: DataTensor | None,
         *,
-        stats: Dict[str, Any],
+        stats: dict[str, Any],
         args: Any,
     ) -> ERKState:
         if self.tableau.fsal:
@@ -226,16 +226,16 @@ class ExplicitRungeKutta(nn.Module):
     @torch.jit.export
     def step(
         self,
-        term: Optional[ODETerm],
+        term: ODETerm | None,
         running: AcceptTensor,
         y0: DataTensor,
         t0: TimeTensor,
         dt: TimeTensor,
         state: ERKState,
         *,
-        stats: Dict[str, Any],
+        stats: dict[str, Any],
         args: Any,
-    ) -> Tuple[StepResult, ERKInterpolationData, ERKState, Optional[StatusTensor]]:
+    ) -> tuple[StepResult, ERKInterpolationData, ERKState, StatusTensor | None]:
         term_ = term
         if torch.jit.is_scripting() or term_ is None:
             assert term is None, "The integration term is fixed for JIT compilation"

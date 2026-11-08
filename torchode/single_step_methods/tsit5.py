@@ -1,5 +1,3 @@
-from typing import Optional
-
 import sympy as sp
 import torch
 
@@ -113,7 +111,7 @@ class Tsit5(ExplicitRungeKutta):
         b_other=compute_interpolation_weights(),
     )
 
-    def __init__(self, term: Optional[ODETerm] = None):
+    def __init__(self, term: ODETerm | None = None):
         super().__init__(term, Tsit5.TABLEAU)
 
     @torch.jit.export

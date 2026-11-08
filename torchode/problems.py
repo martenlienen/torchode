@@ -1,5 +1,3 @@
-from typing import Optional
-
 from .typing import *
 
 
@@ -21,9 +19,9 @@ class InitialValueProblem:
     def __init__(
         self,
         y0: DataTensor,
-        t_start: Optional[TimeTensor] = None,
-        t_end: Optional[TimeTensor] = None,
-        t_eval: Optional[EvaluationTimesTensor] = None,
+        t_start: TimeTensor | None = None,
+        t_end: TimeTensor | None = None,
+        t_eval: EvaluationTimesTensor | None = None,
     ):
         self.y0 = y0
         self.t_eval = t_eval

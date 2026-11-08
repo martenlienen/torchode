@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any
 
 import torch
 
@@ -32,7 +33,7 @@ class SSMInterpolationData:
 
 
 class StubStepMethod(SingleStepMethod[SSMState, SSMInterpolationData]):
-    def __init__(self, f, status, error: Optional[Callable] = None):
+    def __init__(self, f, status, error: Callable | None = None):
         def dy(t, y):
             assert False, "this should never be called"
 

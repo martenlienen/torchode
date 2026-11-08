@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional
+from math import prod
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -22,8 +23,8 @@ class Adjoint:
     def solve(
         self,
         problem: InitialValueProblem,
-        term: Optional[ODETerm] = None,
-        dt0: Optional[TimeTensor] = None,
+        term: ODETerm | None = None,
+        dt0: TimeTensor | None = None,
         args: Any = None,
     ) -> Solution:
         raise NotImplementedError()
@@ -35,7 +36,7 @@ class AutoDiffAdjoint(nn.Module):
         step_method: SingleStepMethod,
         step_size_controller: StepSizeController,
         *,
-        max_steps: Optional[int] = None,
+        max_steps: int | None = None,
         backprop_through_step_size_control: bool = True,
     ):
         super().__init__()
@@ -49,8 +50,8 @@ class AutoDiffAdjoint(nn.Module):
     def solve(
         self,
         problem: InitialValueProblem,
-        term: Optional[ODETerm] = None,
-        dt0: Optional[TimeTensor] = None,
+        term: ODETerm | None = None,
+        dt0: TimeTensor | None = None,
         args: Any = None,
     ) -> Solution:
         step_method, step_size_controller = self.step_method, self.step_size_controller
@@ -66,7 +67,7 @@ class AutoDiffAdjoint(nn.Module):
         y = problem.y0
         stats_n_steps = y.new_zeros(batch_size, dtype=torch.long)
         stats_n_accepted = y.new_zeros(batch_size, dtype=torch.long)
-        stats: Dict[str, Any] = {}
+        stats: dict[str, Any] = {}
 
         # Compute the boundaries in time to ensure that we never step outside of them
         t_min = torch.minimum(t_start, t_end)
@@ -339,12 +340,6 @@ def flatten_tensors(*tensors):
 
 
 def unflatten_tensors(shapes, tensors):
-    def prod(nums):
-        p = 1
-        for n in nums:
-            p = p * n
-        return p
-
     return [
         tensor.reshape((-1, *shape))
         for shape, tensor in zip(
@@ -364,7 +359,7 @@ def ensure_args_do_not_require_grad(args):
         )
 
 
-def expand_stats(stats: Dict[str, Any], batch_size: int):
+def expand_stats(stats: dict[str, Any], batch_size: int):
     """Expand the stats of a joint solve in place to every instance in the batch."""
 
     for key, value in stats.items():
@@ -488,7 +483,7 @@ class BacksolveFunction(torch.autograd.Function):
         grad_t_start, grad_t_end, grad_t_eval = None, None, None
         if any(ctx.needs_input_grad[5:8]):
             term = ctx.term
-            vf_stats: Dict[str, Any] = {}
+            vf_stats: dict[str, Any] = {}
             term.init(InitialValueProblem(y0, t_start, t_end, t_eval), vf_stats)
 
             def project_vf(t, y, cotangent):
@@ -582,11 +577,11 @@ class AugmentedDynamicsTerm(nn.Module):
             randomness=self.vmap_randomness,
         )
 
-    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
     ) -> DataTensor:
         shapes, args = args
 
@@ -621,10 +616,10 @@ class BacksolveAdjoint(nn.Module):
     def solve(
         self,
         problem: InitialValueProblem,
-        term: Optional[ODETerm] = None,
-        dt0: Optional[TimeTensor] = None,
+        term: ODETerm | None = None,
+        dt0: TimeTensor | None = None,
         args: Any = None,
-        backward_dt0: Optional[TimeTensor] = None,
+        backward_dt0: TimeTensor | None = None,
     ) -> Solution:
         ensure_args_do_not_require_grad(args)
         if term is None or term is self.term:
@@ -668,11 +663,11 @@ class UnwrappingODETerm(nn.Module):
 
         self.term = term
 
-    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
     ) -> DataTensor:
         """Evaluate the vector field."""
         batch_size, term_args = args
@@ -688,11 +683,11 @@ class JointAugmentedDynamicsTerm(nn.Module):
 
         self.term = term
 
-    def init(self, problem: InitialValueProblem, stats: Dict[str, Any]):
+    def init(self, problem: InitialValueProblem, stats: dict[str, Any]):
         return self.term.init(problem, stats)
 
     def vf(
-        self, t: TimeTensor, y: DataTensor, stats: Dict[str, Any], args: Any
+        self, t: TimeTensor, y: DataTensor, stats: dict[str, Any], args: Any
     ) -> DataTensor:
         shapes, term_args = args
 
@@ -752,10 +747,10 @@ class JointBacksolveAdjoint(nn.Module):
     def solve(
         self,
         problem: InitialValueProblem,
-        term: Optional[ODETerm] = None,
-        dt0: Optional[TimeTensor] = None,
+        term: ODETerm | None = None,
+        dt0: TimeTensor | None = None,
         args: Any = None,
-        backward_dt0: Optional[TimeTensor] = None,
+        backward_dt0: TimeTensor | None = None,
     ) -> Solution:
         ensure_args_do_not_require_grad(args)
         times = [problem.t_start[:, None], problem.t_end[:, None]]

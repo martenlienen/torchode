@@ -1,16 +1,11 @@
-from typing import Any, Callable, Optional, Tuple, Union
-
-import torch
+from collections.abc import Callable
+from typing import Any
 
 from .adjoints import AutoDiffAdjoint
 from .problems import InitialValueProblem
 from .single_step_methods import SingleStepMethod
 from .solution import Solution
-from .step_size_controllers import (
-    FixedStepController,
-    PIDController,
-    StepSizeController,
-)
+from .step_size_controllers import PIDController, StepSizeController
 from .terms import ODETerm
 from .typing import *
 
@@ -22,15 +17,15 @@ def register_method(name: str, constructor: Callable[[ODETerm], SingleStepMethod
 
 
 def solve_ivp(
-    f: Union[ODETerm, Callable[[TimeTensor, DataTensor], DataTensor]],
+    f: ODETerm | Callable[[TimeTensor, DataTensor], DataTensor],
     y0: DataTensor,
     t_eval: EvaluationTimesTensor,
     *,
-    t_span: Optional[Tuple[TimeTensor, TimeTensor]] = None,
-    method: Union[str, SingleStepMethod] = "tsit5",
-    max_steps: Optional[int] = None,
-    controller: Optional[StepSizeController] = None,
-    dt0: Optional[TimeTensor] = None,
+    t_span: tuple[TimeTensor, TimeTensor] | None = None,
+    method: str | SingleStepMethod = "tsit5",
+    max_steps: int | None = None,
+    controller: StepSizeController | None = None,
+    dt0: TimeTensor | None = None,
     args: Any = None,
 ) -> Solution:
     """Solve an initial value problem
