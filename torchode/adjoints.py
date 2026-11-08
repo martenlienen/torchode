@@ -75,7 +75,7 @@ class AutoDiffAdjoint(nn.Module):
 
         # TorchScript is not smart enough yet to figure out that we only access these
         # variables when they have been defined, so we have to always define them and
-        # intialize them to any valid tensor.
+        # initialize them to any valid tensor.
         y_eval: torch.Tensor = y
         not_yet_evaluated: torch.Tensor = y
         minus_t_eval_normalized: torch.Tensor = y

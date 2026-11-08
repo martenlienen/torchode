@@ -10,7 +10,7 @@ Keeping track of each sample's solver state in batched training separately means
 torchode can step every sample forward in time and accept or reject their steps
 independently. Therefore, the error that your model makes on one sample does not influence
 the solver on another sample and sample `x` will always take the same amount of steps and
-produce the same error and gradient regardless of it it was batched with sample `y` or
+produce the same error and gradient regardless of whether it was batched with sample `y` or
 sample `z`. In contrast, torchdiffeq and TorchDyn only track a single solver state and the
 established batching method is to treat all samples `n` as one large ODE system instead of
 an independent set of `n` ODEs. For well behaved models and ODEs, the effect is negligible

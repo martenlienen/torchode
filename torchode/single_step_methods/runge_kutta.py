@@ -39,7 +39,7 @@ class ButcherTableau:
         b: WeightVector,
         # Coefficients for the error estimate
         b_err: WeightVector,
-        # Additional additional rows of the b matrix
+        # Additional rows of the b matrix
         b_other: WeightMatrix | None = None,
         fsal: bool | None = None,
         ssal: bool | None = None,
