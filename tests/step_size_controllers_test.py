@@ -4,6 +4,8 @@ import pytest
 import torch
 
 from torchode import (
+    AutoDiffAdjoint,
+    Dopri5,
     InitialValueProblem,
     IntegralController,
     ODETerm,
@@ -356,3 +358,25 @@ def test_limit_step_size(controller):
         t0, dt, y0, result, state, stats={}
     )
     assert (dt_next_limited <= dt_max).all()
+
+
+@pytest.mark.parametrize("with_dt0", [False, True])
+@pytest.mark.parametrize(
+    "controller",
+    [
+        PIDController(atol=1e-8, rtol=1e-8, pcoeff=0.2, icoeff=0.5, dcoeff=0.0),
+        IntegralController(atol=1e-8, rtol=1e-8),
+    ],
+)
+def test_solves_complex_problems(controller, with_dt0):
+    # y' = i y rotates y0 in the complex plane
+    term = ODETerm(lambda t, y: 1j * y)
+    y0 = torch.tensor([[1.0 + 0j], [0.5j]], dtype=torch.complex128)
+    t_eval = torch.linspace(0.0, 6.0, 7, dtype=torch.float64).expand(2, -1)
+    problem = InitialValueProblem(y0, t_eval=t_eval)
+    dt0 = torch.full((2,), 0.01, dtype=torch.float64) if with_dt0 else None
+    solution = AutoDiffAdjoint(Dopri5(), controller).solve(problem, term, dt0)
+
+    assert solution.status.tolist() == [Status.SUCCESS.value] * 2
+    expected = y0[:, None] * torch.exp(1j * t_eval)[..., None]
+    torch.testing.assert_close(solution.ys, expected, atol=1e-6, rtol=0.0)

@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BacksolveAdjoint` now counts the function evaluations of its backward solves in the `n_f_evals` of the `stats["backsolve"]` entries.
 - The `Heun` step now uses slope `f(t1, y1)` instead of the slope at the Euler predictor to build its dense interpolation, so it joins the next step smoothly.
 - `JointBacksolveAdjoint` no longer crashes when `dt0` or `backward_dt0` has one entry per instance, i.e. shape `(batch,)`.
+- `IntegralController` and `PIDController` no longer crash on complex `y0`.
 
 ## 1.0.0 - 2024-09-22
 

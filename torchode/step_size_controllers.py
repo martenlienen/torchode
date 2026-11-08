@@ -304,7 +304,8 @@ class IntegralController(nn.Module):
         return IntegralState.default(
             method_order=method_order,
             batch_size=problem.batch_size,
-            dtype=problem.data_dtype,
+            # The controller state is real, even for complex data
+            dtype=problem.y0.real.dtype,
             device=problem.device,
             dt_min=dt_min,
             dt_max=dt_max,
@@ -474,7 +475,7 @@ class IntegralController(nn.Module):
         dt0 = torch.where(tiny_norms, small_number, 0.01 * d0 / safe_d1)
 
         # Ensure that we don't step out of the integration bounds
-        dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
+        dt0 = torch.minimum(dt0, dt_max.to(dtype=dt0.dtype))
 
         y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
@@ -640,7 +641,8 @@ class PIDController(nn.Module):
         return PIDState.default(
             method_order=method_order,
             batch_size=problem.batch_size,
-            dtype=problem.data_dtype,
+            # The controller state is real, even for complex data
+            dtype=problem.y0.real.dtype,
             device=problem.device,
             dt_min=dt_min,
             dt_max=dt_max,
@@ -829,7 +831,7 @@ class PIDController(nn.Module):
         dt0 = torch.where(tiny_norms, small_number, 0.01 * d0 / safe_d1)
 
         # Ensure that we don't step out of the integration bounds
-        dt0 = torch.minimum(dt0, dt_max.to(dtype=y0.dtype))
+        dt0 = torch.minimum(dt0, dt_max.to(dtype=dt0.dtype))
 
         y1 = torch.addcmul(y0, (direction * dt0)[:, None], f0)
         f1 = term.vf(
