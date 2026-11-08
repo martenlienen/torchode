@@ -20,12 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BacksolveAdjoint` and `JointBacksolveAdjoint` now compute gradients with respect to `t_start`, `t_end` and `t_eval`. They raise an error if a tensor in `args` requires gradients.
 - The backward passes of `BacksolveAdjoint` and `JointBacksolveAdjoint` now also preserve the dtypes of `t` and `y`.
 - `IntegralController` and `PIDController` now also apply `dt_min` and `dt_max` to the initial step.
-- `JointBacksolveAdjoint` now returns the same shape for `status`, `ts` and `stats` as the other adjoints.
+- `JointBacksolveAdjoint` now returns the same shape for `status`, `ts` and `stats` as the other adjoints, including the stats of its backward solves.
 - Backsolve adjoints no longer compute gradients for frozen parameters in the backward pass (nor do they fail as was the case for `JointBacksolveAdjoint`)
 - The backward pass of `BacksolveAdjoint` now passes the dynamics a batch dimension like the forward pass, so dynamics that index the batch dimension, e.g. `t[:, None]`, no longer crash.
 - `BacksolveAdjoint` and `JointBacksolveAdjoint` now use the `term` passed to `solve`, if any, instead of silently ignoring it in favor of the one passed at construction.
 - `solve_ivp` now accepts `method="euler"`.
 - `solve_ivp` now raises an error if `args` are given with an `ODETerm` that was not constructed with `with_args=True`.
+- `BacksolveAdjoint` now counts the function evaluations of its backward solves in the `n_f_evals` of the `stats["backsolve"]` entries.
 
 ## 1.0.0 - 2024-09-22
 

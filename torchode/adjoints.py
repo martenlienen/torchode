@@ -362,6 +362,14 @@ def ensure_args_do_not_require_grad(args):
         )
 
 
+def expand_stats(stats: Dict[str, Any], batch_size: int):
+    """Expand the stats of a joint solve in place to every instance in the batch."""
+
+    for key, value in stats.items():
+        if isinstance(value, torch.Tensor):
+            stats[key] = value.expand(batch_size, *value.shape[1:])
+
+
 class BacksolveFunction(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -579,6 +587,10 @@ class AugmentedDynamicsTerm(nn.Module):
         y, adj_y, *_ = unflatten_tensors(shapes, y)
         dy, vjp_y, vjp_params = self.vjp_vf(t, y, adj_y, args)
 
+        # Count calls since we bypass ODETerm.vf with torch.func.functional_call
+        if self.term.with_stats:
+            stats["n_f_evals"].add_(1)
+
         return flatten_tensors(dy, vjp_y, *vjp_params)[1]
 
 
@@ -708,6 +720,19 @@ class JointAugmentedDynamicsTerm(nn.Module):
         return flatten_tensors(dy_joint, vjp_y, *vjp_params_joint)[1]
 
 
+class ExpandingStatsSolver:
+    """Broadcast the stats of a joint solve to all instances of the batch"""
+
+    def __init__(self, solver, batch_size: int):
+        self.solver = solver
+        self.batch_size = batch_size
+
+    def solve(self, *args, **kwargs) -> Solution:
+        solution = self.solver.solve(*args, **kwargs)
+        expand_stats(solution.stats, self.batch_size)
+        return solution
+
+
 class JointBacksolveAdjoint(nn.Module):
     def __init__(self, term, step_method, step_size_controller):
         super().__init__()
@@ -751,7 +776,7 @@ class JointBacksolveAdjoint(nn.Module):
             backward_dt0 = -dt0
         _, ys, stats, status = BacksolveFunction.apply(
             self.forward_loop,
-            self.backward_loop,
+            ExpandingStatsSolver(self.backward_loop, problem.batch_size),
             term,
             augmented_term,
             y0,
@@ -770,9 +795,7 @@ class JointBacksolveAdjoint(nn.Module):
 
         # Broadcast status and stats from the joint solve to all instances
         status = status.expand(batch_size)
-        for key, value in stats.items():
-            if isinstance(value, torch.Tensor):
-                stats[key] = value.expand(batch_size, *value.shape[1:])
+        expand_stats(stats, batch_size)
         return Solution(ts, ys, stats, status)
 
     def __repr__(self):

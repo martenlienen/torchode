@@ -682,16 +682,20 @@ def test_solution_has_outputs_for_every_instance(adjoint, with_t_eval):
         solver = adjoint(term, Dopri5(), IntegralController(1e-6, 1e-6))
     # Share the times across instances, because JointBacksolveAdjoint requires it
     t_eval = torch.tensor([[0.0, 0.5, 1.0]]).expand(3, -1) if with_t_eval else None
-    y0 = torch.ones((3, 1))
+    y0 = torch.ones((3, 1), requires_grad=True)
     problem = InitialValueProblem(y0, torch.zeros(3), torch.ones(3), t_eval)
     solution = solver.solve(problem, term=term)
+    # The backsolve adjoints add the stats of their backward solves
+    solution.ys.sum().backward()
 
     n_eval = 3 if with_t_eval else 1
     assert solution.ts.shape == (3, n_eval)
     assert solution.ys.shape == (3, n_eval, 1)
     assert solution.status.shape == (3,)
-    for key in ["n_f_evals", "n_steps", "n_accepted", "n_initialized"]:
-        assert solution.stats[key].shape == (3,)
+    keys = ["n_f_evals", "n_steps", "n_accepted", "n_initialized"]
+    for stats in [solution.stats, *solution.stats.get("backsolve", [])]:
+        for key in keys:
+            assert stats[key].shape == (3,)
 
 
 class AffineDynamics(nn.Module):
@@ -766,3 +770,40 @@ def test_backsolve_backward_passes_batched_inputs_to_dynamics(with_args):
     expected = torch.autograd.grad(exact, (y0, a))
     for grad, expected_grad in zip(grads, expected):
         torch.testing.assert_close(grad, expected_grad, atol=1e-7, rtol=1e-7)
+
+
+class CountingDynamics(nn.Module):
+    def __init__(self, A):
+        super().__init__()
+
+        self.A = A
+        self.n_calls = 0
+
+    def forward(self, t, y):
+        self.n_calls += 1
+        return y @ self.A
+
+
+@pytest.mark.parametrize(
+    "adjoint", [AutoDiffAdjoint, BacksolveAdjoint, JointBacksolveAdjoint]
+)
+def test_counts_function_evaluations(adjoint):
+    dynamics = CountingDynamics(nn.Parameter(torch.tensor([[-0.5]])))
+    term = ODETerm(dynamics)
+    if adjoint is AutoDiffAdjoint:
+        solver = AutoDiffAdjoint(Dopri5(), IntegralController(1e-6, 1e-6))
+    else:
+        solver = adjoint(term, Dopri5(), IntegralController(1e-6, 1e-6))
+    y0 = torch.ones((2, 1), requires_grad=True)
+    problem = InitialValueProblem(y0, torch.zeros(2), torch.ones(2))
+    solution = solver.solve(problem, term=term)
+    n_forward_calls = dynamics.n_calls
+    solution.ys.sum().backward()
+    n_backward_calls = dynamics.n_calls - n_forward_calls
+
+    # Every evaluation of f covers the whole batch. In the backward pass of
+    # BacksolveAdjoint, vmap evaluates f once per call of the augmented dynamics.
+    assert solution.stats["n_f_evals"].tolist() == [n_forward_calls] * 2
+    if adjoint is not AutoDiffAdjoint:
+        (backward_stats,) = solution.stats["backsolve"]
+        assert backward_stats["n_f_evals"].tolist() == [n_backward_calls] * 2
