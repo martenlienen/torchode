@@ -7,7 +7,10 @@ from .runge_kutta import ButcherTableau, ERKInterpolationData, ExplicitRungeKutt
 
 class Heun(ExplicitRungeKutta):
     TABLEAU = ButcherTableau.from_lists(
-        c=[0.0, 1.0], a=[[], [1.0]], b=[1 / 2, 1 / 2], b_low_order=[1.0, 0.0]
+        c=[0.0, 1.0, 1.0],
+        a=[[], [1.0], [1 / 2, 1 / 2]],
+        b=[1 / 2, 1 / 2, 0.0],
+        b_low_order=[1.0, 0.0, 0.0],
     )
 
     def __init__(self, term: ODETerm | None = None):
