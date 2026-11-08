@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A page documenting the solver statistics like number of function evaluation and number of accepted solver steps.
+- A page documenting the implemented step methods.
 
 ### Changed
 
