@@ -147,22 +147,14 @@ class FourthOrderPolynomialInterpolation:
         dt_data = dt.to(dtype=y0.dtype)
         f0 = dt_data[:, None] * k[0]
         f1 = dt_data[:, None] * k[-1]
-        y_mid = y0 + torch.einsum("b, s, sbf -> bf", dt_data, b_mid, k)
+        dy_mid = torch.einsum("b, s, sbf -> bf", dt_data, b_mid, k)
+        dy = y1 - y0
 
-        a = (2 * (f1 - f0)).add(y1 + y0, alpha=-8).add(y_mid, alpha=16)
-        b = (
-            (5 * f0)
-            .add(f1, alpha=-3)
-            .add(y0, alpha=18)
-            .add(y1, alpha=14)
-            .add(y_mid, alpha=-32)
-        )
-        c = (
-            f1.add(f0, alpha=-4)
-            .add(y0, alpha=-11)
-            .add(y1, alpha=-5)
-            .add(y_mid, alpha=16)
-        )
+        # Form the coefficients from increments so a large common offset cancels
+        # before multiplication rather than overflowing in the intermediate sums.
+        a = (16 * dy_mid).add(dy, alpha=-8).add(f1 - f0, alpha=2)
+        b = (5 * f0).add(f1, alpha=-3).add(dy, alpha=14).add(dy_mid, alpha=-32)
+        c = f1.add(f0, alpha=-4).add(dy, alpha=-5).add(dy_mid, alpha=16)
         d = f0
         e = y0
 

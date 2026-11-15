@@ -1,9 +1,17 @@
 import numpy as np
+import pytest
 import torch
 from numpy.polynomial import Polynomial
 from pytest import approx
 
-from torchode import Tsit5
+from torchode import (
+    AutoDiffAdjoint,
+    Dopri5,
+    FixedStepController,
+    InitialValueProblem,
+    ODETerm,
+    Tsit5,
+)
 from torchode.interpolation import (
     FourthOrderPolynomialInterpolation,
     LinearInterpolation,
@@ -125,3 +133,28 @@ def test_tsit5_recovers_coefficients_of_4th_order_polynomial():
     assert interp.t0.allclose(t0)
     assert interp.t1.allclose(t0 + dt)
     assert torch.cat(interp.coefficients)[:, 0] == approx(p.coef, abs=5e-4)
+
+
+@pytest.mark.parametrize(
+    "dtype,offset,slope",
+    [
+        (torch.float16, 10000.0, 32.0),
+        (torch.float32, 1e38, 1e36),
+        (torch.float64, 1e307, 1e305),
+    ],
+)
+@pytest.mark.parametrize("direction", [-1.0, 1.0])
+@pytest.mark.parametrize("constant", [False, True])
+def test_dopri5_interpolation_large_offset(dtype, offset, slope, direction, constant):
+    slope = 0.0 if constant else slope
+    y0 = torch.tensor([[offset, -offset]], dtype=dtype)
+    term = ODETerm(lambda t, y: torch.full_like(y, slope))
+    solver = AutoDiffAdjoint(Dopri5(term), FixedStepController())
+    times = direction * torch.tensor([[0.0, 0.25, 0.5, 0.75, 1.0]], dtype=torch.float64)
+    solution = solver.solve(
+        InitialValueProblem(y0, t_eval=times), dt0=torch.tensor([direction])
+    )
+
+    expected = y0[:, None] + times.to(dtype=dtype)[:, :, None] * slope
+    torch.testing.assert_close(solution.ys, expected)
+    assert torch.isfinite(solution.ys).all()
