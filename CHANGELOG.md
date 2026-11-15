@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Improve numerical stability of fourth-order interpolation at very large state magnitudes (#60 by [@linjiaye929](https://github.com/linjiaye929))
+
 ## 1.1.0 - 2026-11-08
 
 A pull request by [@DiadkoShmek](https://github.com/DiadkoShmek) led me to have the whole project reviewed by a recent coding agent. I then spent quite some time reviewing its findings, fixing issues and improving the documentation. Many edge cases that used to fail or give incorrect results now work as expected and I hope that version 1.1.0 will help you in your research.
