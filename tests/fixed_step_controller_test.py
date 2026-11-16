@@ -3,10 +3,10 @@ import torch
 from problems import get_problem
 from pytest import approx
 
-from torchode import AutoDiffAdjoint, Dopri5, FixedStepController, Heun, Status, Tsit5
+from torchode import AutoDiffAdjoint, Bosh3, Dopri5, FixedStepController, Heun, Status, Tsit5
 
 
-@pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5])
+@pytest.mark.parametrize("step_method", [Bosh3, Dopri5, Heun, Tsit5])
 def test_solve_with_fixed_steps(step_method):
     f, term, problem = get_problem("sine", [[0.1, 0.7, 2.0], [0.5, 1.2, 4.0]])
     controller = FixedStepController()

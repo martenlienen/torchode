@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from problems import create_ivp
-from torchode import Dopri5, Heun, InitialValueProblem, ODETerm, Tsit5
+from torchode import Bosh3, Dopri5, Heun, InitialValueProblem, ODETerm, Tsit5
 from torchode.single_step_methods.runge_kutta import ButcherTableau, ExplicitRungeKutta
 from torchode.status_codes import Status
 
@@ -55,7 +55,7 @@ def test_evaluates_term_at_correct_nodes():
     assert torch.allclose(y_err, dt[:, None] * (-f_y[0] / 6 + f_y[1] / 3 - f_y[2] / 6))
 
 
-@pytest.mark.parametrize("method_class", [Heun, Dopri5, Tsit5])
+@pytest.mark.parametrize("method_class", [Bosh3, Heun, Dopri5, Tsit5])
 def test_interpolation_ends_with_slope_of_dynamics(method_class):
     # A nonlinear f, so that the slope at the end of the step differs from the
     # slope at any intermediate stage
