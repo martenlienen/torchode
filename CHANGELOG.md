@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Improve numerical stability of fourth-order interpolation at very large state magnitudes (#60 by [@linjiaye929](https://github.com/linjiaye929))
+- `solve_ivp` accepts step method objects such as `method=to.Tsit5()`
 
 ## 1.1.0 - 2026-11-08
 

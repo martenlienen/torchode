@@ -72,7 +72,7 @@ def solve_ivp(
     # TODO: Automatically reshape y0 into [batch, features] and back into its original
     # shape
 
-    if not isinstance(method, SingleStepMethod):
+    if isinstance(method, str):
         method = METHODS[method](term)
 
     if controller is None:
