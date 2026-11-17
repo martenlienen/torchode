@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Add the Bogacki–Shampine (bosh3) third-order stepping method (#61 by [@bingdongni](https://github.com/bingdongni))
+
 ### Fixed
 
 - Improve numerical stability of fourth-order interpolation at very large state magnitudes (#60 by [@linjiaye929](https://github.com/linjiaye929))
