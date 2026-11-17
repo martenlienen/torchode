@@ -2,12 +2,12 @@ from unittest.mock import Mock
 
 import pytest
 import torch
-from problems import create_ivp
 
-from torchode import AutoDiffAdjoint, Dopri5, Heun, ODETerm, PIDController, Tsit5
+from problems import ADAPTIVE_STEP_METHODS, create_ivp
+from torchode import AutoDiffAdjoint, ODETerm, PIDController
 
 
-@pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5])
+@pytest.mark.parametrize("step_method", ADAPTIVE_STEP_METHODS)
 def test_extra_args_are_passed_to_dynamics(step_method):
     f = Mock(return_value=torch.ones((1, 3)))
     term = ODETerm(f, with_args=True)
