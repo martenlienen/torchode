@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 import torch
 
-from problems import ADAPTIVE_STEP_METHODS, create_ivp
-from torchode import InitialValueProblem, ODETerm
+from problems import ADAPTIVE_STEP_METHODS, STEP_METHODS, create_ivp
+from torchode import AutoDiffAdjoint, FixedStepController, InitialValueProblem, ODETerm
 from torchode.single_step_methods.runge_kutta import ButcherTableau, ExplicitRungeKutta
 from torchode.status_codes import Status
 
@@ -81,3 +81,23 @@ def test_interpolation_ends_with_slope_of_dynamics(method_class):
     y = interpolation.evaluate(t, torch.zeros(2, dtype=torch.long))
     slope = (y[1] - y[0]) / h
     torch.testing.assert_close(slope, -(result.y[0] ** 2), atol=1e-6, rtol=0.0)
+
+
+@pytest.mark.parametrize(
+    "device", ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+)
+@pytest.mark.parametrize("method_class", STEP_METHODS)
+def test_observed_order_matches_convergence_order(method_class, device):
+    y0 = torch.tensor([[1.0], [2.0]], dtype=torch.float64, device=device)
+    ts = y0.new_tensor([[0.0, 0.37, 1.0], [0.0, -0.43, -1.0]])
+    exact = y0 * ts[:, -1:].exp()
+    errors = []
+    step_method = method_class()
+    for n in [16, 32]:
+        term, problem = create_ivp(lambda t, y: y, y0, ts)
+        solver = AutoDiffAdjoint(step_method, FixedStepController())
+        sol = solver.solve(problem, term, dt0=ts[:, -1] / n)
+        errors.append((sol.ys[:, -1] - exact).abs())
+    observed_order = torch.log2(errors[0] / errors[1])
+    expected_order = step_method.convergence_order()
+    assert ((observed_order - expected_order).abs() < 0.4).all()
