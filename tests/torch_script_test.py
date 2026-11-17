@@ -1,15 +1,15 @@
 import pytest
 import torch
 from packaging import version
-from problems import get_problem
 from pytest import approx
 
-from torchode import AutoDiffAdjoint, Bosh3, Dopri5, Euler, Heun, IntegralController, Tsit5
+from problems import ADAPTIVE_STEP_METHODS, STEP_METHODS, get_problem
+from torchode import AutoDiffAdjoint, Euler, IntegralController
 
 torch_version = version.parse(torch.__version__)
 
 
-@pytest.mark.parametrize("step_method", [Bosh3, Dopri5, Heun, Tsit5, Euler])
+@pytest.mark.parametrize("step_method", STEP_METHODS)
 def test_can_be_jitted_with_torch_script(step_method):
     _, term, problem = get_problem("sine", [[0.1, 0.15, 1.0], [1.0, 1.9, 2.0]])
     step_size_controller = IntegralController(1e-3, 1e-3, term=term)
@@ -24,7 +24,7 @@ def test_can_be_jitted_with_torch_script(step_method):
     assert solution.ys == approx(solution_jit.ys, abs=1e-3, rel=1e-3)
 
 
-methods = [Bosh3, Dopri5, Heun, Tsit5]
+methods = list(ADAPTIVE_STEP_METHODS)
 v = torch_version
 if (v.major, v.minor) not in [(2, 0)]:
     # In pytorch 2.0, Euler triggers an internal error in the JIT compiler specifically

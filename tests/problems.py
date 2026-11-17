@@ -1,7 +1,19 @@
 import torch
 
-from torchode import InitialValueProblem, ODETerm
+from torchode import (
+    Bosh3,
+    Dopri5,
+    Euler,
+    Heun,
+    InitialValueProblem,
+    ODETerm,
+    Tsit5,
+)
 from torchode.typing import *
+
+# Methods with an embedded error estimate, which adaptive step size controllers need
+ADAPTIVE_STEP_METHODS = [Bosh3, Dopri5, Heun, Tsit5]
+STEP_METHODS = ADAPTIVE_STEP_METHODS + [Euler]
 
 
 def make_time_tensor(t, dims):

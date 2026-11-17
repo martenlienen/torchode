@@ -2,16 +2,14 @@ import pytest
 import torch
 import torch.nn as nn
 
+from problems import ADAPTIVE_STEP_METHODS
 from torchode import (
     AutoDiffAdjoint,
     BacksolveAdjoint,
-    Dopri5,
-    Heun,
     InitialValueProblem,
     JointBacksolveAdjoint,
     ODETerm,
     PIDController,
-    Tsit5,
 )
 
 
@@ -33,7 +31,7 @@ class DtypeCheckingDynamics(nn.Module):
     "time_dtype,data_dtype",
     [(torch.float64, torch.float32), (torch.float32, torch.float64)],
 )
-@pytest.mark.parametrize("step_method", [Dopri5, Heun, Tsit5])
+@pytest.mark.parametrize("step_method", ADAPTIVE_STEP_METHODS)
 @pytest.mark.parametrize(
     "adjoint", [AutoDiffAdjoint, BacksolveAdjoint, JointBacksolveAdjoint]
 )
