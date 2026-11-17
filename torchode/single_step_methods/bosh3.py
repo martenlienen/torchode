@@ -6,6 +6,25 @@ from .runge_kutta import ButcherTableau, ERKInterpolationData, ExplicitRungeKutt
 
 
 class Bosh3(ExplicitRungeKutta):
+    """The 3rd order Runge-Kutta method by Bogacki and Shampine
+
+    References
+    ----------
+
+    ```bibtex
+    @article{bogacki1989pair,
+      title={A 3(2) pair of Runge--Kutta formulas},
+      author={Bogacki, Przemyslaw and Shampine, Lawrence F.},
+      journal={Applied Mathematics Letters},
+      volume={2},
+      number={4},
+      pages={321--325},
+      year={1989},
+      publisher={Elsevier}
+    }
+    ```
+    """
+
     TABLEAU = ButcherTableau.from_lists(
         c=[0.0, 1 / 2, 3 / 4, 1.0],
         a=[[], [1 / 2], [0.0, 3 / 4], [2 / 9, 1 / 3, 4 / 9]],
